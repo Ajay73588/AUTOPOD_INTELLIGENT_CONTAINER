@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AutoPod Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <h1>AutoPod Dashboard</h1>
+    <h2>Container Status</h2>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Image</th>
+            <th>Status</th>
+            <th>Created At</th>
+        </tr>
+        {% for status in statuses %}
+        <tr>
+            <td>{{ status.name }}</td>
+            <td>{{ status.image }}</td>
+            <td>{{ status.status }}</td>
+            <td>{{ status.created_at }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <h2>Logs</h2>
+    <table>
+        <tr>
+            <th>Container</th>
+            <th>Message</th>
+            <th>Timestamp</th>
+        </tr>
+        {% for log in logs %}
+        <tr>
+            <td>{{ log.container }}</td>
+            <td>{{ log.message | tojson }}</td>
+            <td>{{ log.timestamp }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

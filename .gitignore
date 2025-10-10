@@ -1,0 +1,35 @@
+# Python-specific ignores
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+
+# Database
+autopod.db
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.swp
+*.swo
+*.tmp
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Podman-related
+*.tar
+*.tar.gz
