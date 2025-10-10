@@ -6,38 +6,65 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <h1>AutoPod Dashboard</h1>
-    <h2>Container Status</h2>
-    <table>
-        <tr>
-            <th>Name</th>
-            <th>Image</th>
-            <th>Status</th>
-            <th>Created At</th>
-        </tr>
-        {% for status in statuses %}
-        <tr>
-            <td>{{ status.name }}</td>
-            <td>{{ status.image }}</td>
-            <td>{{ status.status }}</td>
-            <td>{{ status.created_at }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    <h2>Logs</h2>
-    <table>
-        <tr>
-            <th>Container</th>
-            <th>Message</th>
-            <th>Timestamp</th>
-        </tr>
-        {% for log in logs %}
-        <tr>
-            <td>{{ log.container }}</td>
-            <td>{{ log.message | tojson }}</td>
-            <td>{{ log.timestamp }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+    <header class="navbar">
+        <h1>🚀 AutoPod Dashboard</h1>
+        <p>Intelligent Container Lifecycle Manager</p>
+    </header>
+
+    <main class="dashboard-container">
+        <section class="card">
+            <h2>🧩 Container Status</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Image</th>
+                        <th>Status</th>
+                        <th>Created At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for status in statuses %}
+                    <tr class="status-row">
+                        <td>{{ status.name }}</td>
+                        <td>{{ status.image }}</td>
+                        <td>
+                            <span class="status-badge {% if status.status == 'running' %}running{% elif status.status == 'exited' %}stopped{% else %}unknown{% endif %}">
+                                {{ status.status }}
+                            </span>
+                        </td>
+                        <td>{{ status.created_at }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="card">
+            <h2>📜 Recent Logs</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Container</th>
+                        <th>Message</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.container }}</td>
+                        <td class="log-message">{{ log.message | tojson }}</td>
+                        <td>{{ log.timestamp }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2025 AutoPod | Made with ❤️ by DevOps Innovators</p>
+    </footer>
 </body>
 </html>
