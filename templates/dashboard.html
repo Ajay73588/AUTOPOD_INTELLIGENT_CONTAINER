@@ -1,70 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>AutoPod Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css">
+  <meta charset="UTF-8">
+  <title>AutoPod Dashboard</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background-color: #0b0c10;
+      color: #c5c6c7;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      color: #66fcf1;
+      text-align: center;
+    }
+    .section {
+      background-color: #1f2833;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+    }
+    pre {
+      background-color: #0b0c10;
+      padding: 10px;
+      border-radius: 8px;
+      overflow-x: auto;
+      color: #45a29e;
+    }
+  </style>
 </head>
 <body>
-    <header class="navbar">
-        <h1>🚀 AutoPod Dashboard</h1>
-        <p>Intelligent Container Lifecycle Manager</p>
-    </header>
+  <h1>🚀 AutoPod Intelligent Container Dashboard</h1>
 
-    <main class="dashboard-container">
-        <section class="card">
-            <h2>🧩 Container Status</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Image</th>
-                        <th>Status</th>
-                        <th>Created At</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for status in statuses %}
-                    <tr class="status-row">
-                        <td>{{ status.name }}</td>
-                        <td>{{ status.image }}</td>
-                        <td>
-                            <span class="status-badge {% if status.status == 'running' %}running{% elif status.status == 'exited' %}stopped{% else %}unknown{% endif %}">
-                                {{ status.status }}
-                            </span>
-                        </td>
-                        <td>{{ status.created_at }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
+  <div class="section">
+    <h2>Container Status</h2>
+    <div id="status">Loading...</div>
+  </div>
 
-        <section class="card">
-            <h2>📜 Recent Logs</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Container</th>
-                        <th>Message</th>
-                        <th>Timestamp</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for log in logs %}
-                    <tr>
-                        <td>{{ log.container }}</td>
-                        <td class="log-message">{{ log.message | tojson }}</td>
-                        <td>{{ log.timestamp }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
-    </main>
+  <div class="section">
+    <h2>Container Logs</h2>
+    <pre id="logs">Loading...</pre>
+  </div>
 
-    <footer>
-        <p>© 2025 AutoPod | Made with ❤️ by DevOps Innovators</p>
-    </footer>
+  <script>
+    async function fetchData() {
+      try {
+        const [statusRes, logsRes] = await Promise.all([
+          fetch('/api/status'),
+          fetch('/api/logs')
+        ]);
+
+        const statusData = await statusRes.json();
+        const logsData = await logsRes.json();
+
+        // Status Section
+        const statusDiv = document.getElementById('status');
+        if (statusData.success && statusData.data.length > 0) {
+          statusDiv.innerHTML = `
+            <ul>
+              ${statusData.data.map(s => `
+                <li><b>${s['container_name']}</b>: ${s['status']}</li>
+              `).join('')}
+            </ul>
+          `;
+        } else {
+          statusDiv.innerHTML = '<p>No containers found.</p>';
+        }
+
+        // Logs Section
+        const logsPre = document.getElementById('logs');
+        if (logsData.success && logsData.data.length > 0) {
+          logsPre.textContent = logsData.data.map(l => `[${l['timestamp']}] ${l['log']}`).join('\n');
+        } else {
+          logsPre.textContent = 'No logs available.';
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        document.getElementById('status').innerText = 'Error loading status.';
+        document.getElementById('logs').innerText = 'Error loading logs.';
+      }
+    }
+
+    // Fetch data every 5 seconds
+    fetchData();
+    setInterval(fetchData, 5000);
+  </script>
 </body>
 </html>

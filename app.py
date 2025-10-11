@@ -1,12 +1,15 @@
 import os
 import logging
 import json
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 from webhook_handler import handle_webhook
 from podman_manager import PodmanManager
 from database import init_db, get_container_logs, get_container_status
 
 app = Flask(__name__)
+
+# Ensure logs folder exists
+os.makedirs('logs', exist_ok=True)
 
 # Configure JSON logging
 logging.basicConfig(
@@ -22,14 +25,32 @@ init_db()
 
 @app.route('/')
 def dashboard():
-    """Render the dashboard with container statuses and logs."""
-    statuses = get_container_status()
-    logs = get_container_logs()
-    return render_template('dashboard.html', statuses=statuses, logs=logs)
+    """Render the main dashboard page."""
+    return render_template('dashboard.html')
+
+@app.route('/api/status')
+def api_status():
+    """API endpoint to get container statuses."""
+    try:
+        statuses = get_container_status()
+        return jsonify({"success": True, "data": statuses})
+    except Exception as e:
+        logger.error(f"Error fetching container statuses: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/logs')
+def api_logs():
+    """API endpoint to get container logs."""
+    try:
+        logs = get_container_logs()
+        return jsonify({"success": True, "data": logs})
+    except Exception as e:
+        logger.error(f"Error fetching logs: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    """Handle incoming GitHub webhook events."""
+    """Handle GitHub webhook events."""
     try:
         handle_webhook(podman)
         logger.info(json.dumps({"event": "webhook_received", "status": "success"}))
@@ -39,5 +60,4 @@ def webhook():
         return {"status": "error", "message": str(e)}, 500
 
 if __name__ == '__main__':
-    os.makedirs('logs', exist_ok=True)
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
