@@ -28,6 +28,105 @@
       border-radius: 8px;
       overflow-x: auto;
       color: #45a29e;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #2c3e50;
+    }
+    .status-name {
+      font-weight: bold;
+      color: #66fcf1;
+    }
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .status-running {
+      background-color: #2ecc71;
+      color: #0b0c10;
+    }
+    .status-exited {
+      background-color: #e74c3c;
+      color: white;
+    }
+    .status-created {
+      background-color: #3498db;
+      color: white;
+    }
+    .status-paused {
+      background-color: #f39c12;
+      color: white;
+    }
+    .status-unknown {
+      background-color: #95a5a6;
+      color: white;
+    }
+    .btn {
+      background: #66fcf1;
+      color: #0b0c10;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 5px;
+      transition: all 0.3s ease;
+    }
+    .btn:hover {
+      background: #45a29e;
+      transform: translateY(-2px);
+    }
+    .btn:disabled {
+      background: #4a5f68;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .sync-status {
+      margin-top: 10px;
+      padding: 8px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .status-success {
+      background-color: rgba(46, 204, 113, 0.2);
+      color: #2ecc71;
+      border: 1px solid #2ecc71;
+    }
+    .status-error {
+      background-color: rgba(231, 76, 60, 0.2);
+      color: #e74c3c;
+      border: 1px solid #e74c3c;
+    }
+    .status-info {
+      background-color: rgba(52, 152, 219, 0.2);
+      color: #3498db;
+      border: 1px solid #3498db;
+    }
+    .last-updated {
+      text-align: right;
+      font-size: 12px;
+      color: #7f8c8d;
+      margin-top: 10px;
+    }
+    .container-count {
+      background-color: #66fcf1;
+      color: #0b0c10;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      margin-left: 10px;
     }
   </style>
 </head>
@@ -35,7 +134,27 @@
   <h1>🚀 AutoPod Intelligent Container Dashboard</h1>
 
   <div class="section">
-    <h2>Container Status</h2>
+    <h2>Actions</h2>
+    <div class="actions">
+      <button class="btn" onclick="syncContainers()" id="sync-btn">
+        🔄 Sync Containers
+      </button>
+      <button class="btn" onclick="refreshData()" id="refresh-btn">
+        📊 Refresh Data
+      </button>
+      <button class="btn" onclick="clearLogs()" id="clear-logs-btn">
+        🧹 Clear Logs Display
+      </button>
+    </div>
+    <div id="sync-status" class="sync-status"></div>
+    <div id="last-updated" class="last-updated"></div>
+  </div>
+
+  <div class="section">
+    <h2>
+      Container Status 
+      <span id="container-count" class="container-count">0</span>
+    </h2>
     <div id="status">Loading...</div>
   </div>
 
@@ -45,11 +164,113 @@
   </div>
 
   <script>
+    let lastUpdateTime = null;
+
+    function getStatusBadge(status) {
+      const statusLower = status.toLowerCase();
+      if (statusLower.includes('up') || statusLower.includes('running')) {
+        return 'status-running';
+      } else if (statusLower.includes('exited') || statusLower.includes('stopped')) {
+        return 'status-exited';
+      } else if (statusLower.includes('created')) {
+        return 'status-created';
+      } else if (statusLower.includes('paused')) {
+        return 'status-paused';
+      } else {
+        return 'status-unknown';
+      }
+    }
+
+    function getStatusText(status) {
+      const statusLower = status.toLowerCase();
+      if (statusLower.includes('up') || statusLower.includes('running')) {
+        return 'Running';
+      } else if (statusLower.includes('exited') || statusLower.includes('stopped')) {
+        return 'Exited';
+      } else if (statusLower.includes('created')) {
+        return 'Created';
+      } else if (statusLower.includes('paused')) {
+        return 'Paused';
+      } else {
+        return status;
+      }
+    }
+
+    function updateLastUpdated() {
+      lastUpdateTime = new Date();
+      const lastUpdatedDiv = document.getElementById('last-updated');
+      lastUpdatedDiv.textContent = `Last updated: ${lastUpdateTime.toLocaleTimeString()}`;
+    }
+
+    async function syncContainers() {
+      const syncBtn = document.getElementById('sync-btn');
+      const statusDiv = document.getElementById('sync-status');
+      
+      syncBtn.disabled = true;
+      syncBtn.innerHTML = '⏳ Syncing...';
+      statusDiv.className = 'sync-status status-info';
+      statusDiv.innerHTML = 'Syncing containers with database...';
+      
+      try {
+        const response = await fetch('/api/sync', { 
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+          statusDiv.className = 'sync-status status-success';
+          statusDiv.innerHTML = '✅ Sync successful! Refreshing data...';
+          
+          // Refresh data after successful sync
+          setTimeout(() => {
+            fetchData();
+            statusDiv.innerHTML = '✅ Sync completed successfully';
+          }, 1000);
+        } else {
+          statusDiv.className = 'sync-status status-error';
+          statusDiv.innerHTML = `❌ Sync failed: ${result.error}`;
+        }
+      } catch (err) {
+        statusDiv.className = 'sync-status status-error';
+        statusDiv.innerHTML = `❌ Sync error: ${err.message}`;
+      } finally {
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = '🔄 Sync Containers';
+        
+        // Clear status message after 5 seconds
+        setTimeout(() => {
+          statusDiv.innerHTML = '';
+          statusDiv.className = 'sync-status';
+        }, 5000);
+      }
+    }
+
+    function refreshData() {
+      const refreshBtn = document.getElementById('refresh-btn');
+      refreshBtn.disabled = true;
+      refreshBtn.innerHTML = '⏳ Refreshing...';
+      
+      fetchData();
+      
+      setTimeout(() => {
+        refreshBtn.disabled = false;
+        refreshBtn.innerHTML = '📊 Refresh Data';
+      }, 1000);
+    }
+
+    function clearLogs() {
+      const logsPre = document.getElementById('logs');
+      logsPre.textContent = 'Logs cleared. New logs will appear here...';
+    }
+
     async function fetchData() {
       try {
         const [statusRes, logsRes] = await Promise.all([
-          fetch('/api/status'),
-          fetch('/api/logs')
+          fetch('http://127.0.0.1:5000/api/status'),
+          fetch('http://127.0.0.1:5000/api/logs')
         ]);
 
         const statusData = await statusRes.json();
@@ -57,35 +278,60 @@
 
         // Status Section
         const statusDiv = document.getElementById('status');
+        const containerCount = document.getElementById('container-count');
+        
         if (statusData.success && statusData.data.length > 0) {
+          containerCount.textContent = statusData.data.length;
           statusDiv.innerHTML = `
-            <ul>
+            <div>
               ${statusData.data.map(s => `
-                <li><b>${s['container_name']}</b>: ${s['status']}</li>
+                <div class="status-item">
+                  <span class="status-name">${s['container_name']}</span>
+                  <span class="status-badge ${getStatusBadge(s['status'])}">
+                    ${getStatusText(s['status'])}
+                  </span>
+                </div>
               `).join('')}
-            </ul>
+            </div>
           `;
         } else {
-          statusDiv.innerHTML = '<p>No containers found.</p>';
+          containerCount.textContent = '0';
+          statusDiv.innerHTML = '<p>No containers found. Click "Sync Containers" to refresh.</p>';
         }
 
         // Logs Section
         const logsPre = document.getElementById('logs');
         if (logsData.success && logsData.data.length > 0) {
-          logsPre.textContent = logsData.data.map(l => `[${l['timestamp']}] ${l['log']}`).join('\n');
+          logsPre.textContent = logsData.data.map(l => 
+            `[${l['timestamp']}] ${l['container_name'] || 'unknown'}: ${l['log']}`
+          ).join('\n');
+          // Auto-scroll to bottom of logs
+          logsPre.scrollTop = logsPre.scrollHeight;
         } else {
-          logsPre.textContent = 'No logs available.';
+          logsPre.textContent = 'No logs available. Containers might not be running or no sync has been performed.';
         }
+
+        updateLastUpdated();
+
       } catch (err) {
         console.error('Error fetching data:', err);
-        document.getElementById('status').innerText = 'Error loading status.';
-        document.getElementById('logs').innerText = 'Error loading logs.';
+        document.getElementById('status').innerHTML = 
+          '<p style="color: #e74c3c;">Error loading container status. Check if the server is running.</p>';
+        document.getElementById('logs').textContent = 'Error loading logs. Check console for details.';
+        document.getElementById('container-count').textContent = '0';
+        
+        const statusDiv = document.getElementById('sync-status');
+        statusDiv.className = 'sync-status status-error';
+        statusDiv.innerHTML = '❌ Connection error. Make sure the backend server is running on port 5000.';
       }
     }
 
     // Fetch data every 5 seconds
     fetchData();
     setInterval(fetchData, 5000);
+
+    // Initial update time
+    updateLastUpdated();
   </script>
 </body>
 </html>
