@@ -128,10 +128,70 @@
       font-size: 12px;
       margin-left: 10px;
     }
+    .repo-input {
+      display: flex;
+      gap: 10px;
+      margin: 15px 0;
+    }
+    .repo-input input {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #45a29e;
+      border-radius: 6px;
+      background: #0b0c10;
+      color: #c5c6c7;
+      font-size: 14px;
+    }
+    .repo-input input:focus {
+      outline: none;
+      border-color: #66fcf1;
+      box-shadow: 0 0 10px rgba(102, 252, 241, 0.3);
+    }
+    .repo-input button {
+      background: #45a29e;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+    .repo-input button:hover {
+      background: #66fcf1;
+      transform: translateY(-2px);
+    }
+    .repo-input button:disabled {
+      background: #4a5f68;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .deployment-status {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 6px;
+    }
+    .access-link {
+      color: #66fcf1;
+      text-decoration: none;
+      margin-left: 10px;
+    }
+    .access-link:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
   <h1>🚀 AutoPod Intelligent Container Dashboard</h1>
+
+  <div class="section">
+    <h2>Deploy New Repository</h2>
+    <div class="repo-input">
+      <input type="text" id="repo-url" placeholder="https://github.com/username/repository.git" />
+      <button onclick="deployRepository()" id="deploy-btn">🚀 Deploy Repository</button>
+    </div>
+    <div id="deployment-status" class="deployment-status"></div>
+  </div>
 
   <div class="section">
     <h2>Actions</h2>
@@ -200,6 +260,90 @@
       lastUpdateTime = new Date();
       const lastUpdatedDiv = document.getElementById('last-updated');
       lastUpdatedDiv.textContent = `Last updated: ${lastUpdateTime.toLocaleTimeString()}`;
+    }
+
+    async function deployRepository() {
+      const repoUrl = document.getElementById('repo-url').value.trim();
+      const deployBtn = document.getElementById('deploy-btn');
+      const statusDiv = document.getElementById('deployment-status');
+
+      if (!repoUrl) {
+        statusDiv.className = 'deployment-status status-error';
+        statusDiv.innerHTML = '❌ Please enter a repository URL';
+        return;
+      }
+
+      // Basic GitHub URL validation
+      if (!repoUrl.includes('github.com') || !repoUrl.endsWith('.git')) {
+        statusDiv.className = 'deployment-status status-error';
+        statusDiv.innerHTML = '❌ Please enter a valid GitHub repository URL (should end with .git)';
+        return;
+      }
+
+      deployBtn.disabled = true;
+      deployBtn.innerHTML = '⏳ Deploying...';
+      statusDiv.className = 'deployment-status status-info';
+      statusDiv.innerHTML = '🚀 Starting deployment...';
+
+      try {
+        // Extract repository name from URL
+        const repoName = extractRepoName(repoUrl);
+        
+        const response = await fetch('/webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            repository: {
+              clone_url: repoUrl,
+              name: repoName
+            }
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.status === 'success') {
+          statusDiv.className = 'deployment-status status-success';
+          statusDiv.innerHTML = `
+            ✅ ${result.message}
+            ${result.access_url ? `<br><a href="${result.access_url}" target="_blank" class="access-link">🌐 Open Application</a>` : ''}
+          `;
+          
+          // Clear input field
+          document.getElementById('repo-url').value = '';
+          
+          // Refresh data after deployment
+          setTimeout(fetchData, 2000);
+        } else {
+          statusDiv.className = 'deployment-status status-error';
+          statusDiv.innerHTML = `❌ ${result.message}`;
+        }
+      } catch (err) {
+        statusDiv.className = 'deployment-status status-error';
+        statusDiv.innerHTML = `❌ Deployment failed: ${err.message}`;
+      } finally {
+        deployBtn.disabled = false;
+        deployBtn.innerHTML = '🚀 Deploy Repository';
+        
+        // Clear status after 10 seconds
+        setTimeout(() => {
+          statusDiv.innerHTML = '';
+          statusDiv.className = 'deployment-status';
+        }, 10000);
+      }
+    }
+
+    function extractRepoName(repoUrl) {
+      // Extract repository name from GitHub URL
+      // Example: https://github.com/username/repo.git -> repo
+      const matches = repoUrl.match(/github\.com\/([^\/]+\/[^\/\.]+)/);
+      if (matches && matches[1]) {
+        return matches[1].split('/')[1]; // Get only the repo name
+      }
+      // Fallback: use last part of URL
+      return repoUrl.split('/').pop().replace('.git', '') || 'webhook-app';
     }
 
     async function syncContainers() {
@@ -325,6 +469,13 @@
         statusDiv.innerHTML = '❌ Connection error. Make sure the backend server is running on port 5000.';
       }
     }
+
+    // Add Enter key support for repository input
+    document.getElementById('repo-url').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        deployRepository();
+      }
+    });
 
     // Fetch data every 5 seconds
     fetchData();

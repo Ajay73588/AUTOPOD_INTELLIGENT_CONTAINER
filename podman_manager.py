@@ -18,19 +18,45 @@ class PodmanManager:
             return ""
 
     def get_containers(self):
-        """Return a list of Podman containers as JSON objects."""
-        output = self._run_cmd(["podman", "ps", "-a", "--format", "json"])
-        if not output:
-            return []
+        """Return a list of containers as JSON objects."""
         try:
-            return json.loads(output)
-        except json.JSONDecodeError:
+            cmd = ["podman", "ps", "-a", "--format", "json"]
+            print(f"Running Podman command: {' '.join(cmd)}")
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            
+            if not result.stdout.strip():
+                print("No output from Podman command")
+                return []
+                
+            containers = json.loads(result.stdout)
+            print(f"Podman returned {len(containers)} containers")
+            
+            # Debug: print container names and statuses
+            for container in containers:
+                name = container.get("Names", ["unknown"])[0] if container.get("Names") else "unknown"
+                status = container.get("Status", "unknown")
+                state = container.get("State", "unknown")
+                print(f"  - {name}: {status} (State: {state})")
+                
+            return containers
+            
+        except subprocess.CalledProcessError as e:
+            print(f"Podman command failed. Error: {e.stderr}")
+            return []
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse Podman JSON. Error: {e}")
+            print(f"Raw output: {result.stdout}")
             return []
 
     def get_logs(self, container_id_or_name):
         """Fetch logs for a specific Podman container."""
-        logs = self._run_cmd(["podman", "logs", "--tail", "50", container_id_or_name])
-        return logs
+        try:
+            logs = self._run_cmd(["podman", "logs", "--tail", "50", container_id_or_name])
+            return logs
+        except Exception as e:
+            print(f"Error getting logs for {container_id_or_name}: {e}")
+            return f"Error fetching logs: {str(e)}"
 
     def sync_with_db(self):
         """Fetch Podman container data and store it in SQLite DB using the correct schema."""
@@ -49,14 +75,24 @@ class PodmanManager:
                     container_name = container.get("Names", [""])[0] if container.get("Names") else "unknown"
                     container_status = container.get("Status", "unknown")
                     container_id = container.get("Id", "")[:12]  # Short container ID
+                    container_state = container.get("State", "unknown")
 
                     # Clean up container name if it's a list
                     if isinstance(container_name, list):
                         container_name = container_name[0] if container_name else "unknown"
                     
-                    # Fix timestamp issues in status
+                    # Fix the "292 years ago" timestamp issue and normalize status
                     if "292 years ago" in container_status:
-                        container_status = container_status.replace("292 years ago", "recently")
+                        if container_state == "running":
+                            container_status = "Running"
+                        else:
+                            container_status = "Exited"
+                    elif "Exited" in container_status:
+                        container_status = "Exited"
+                    elif "Up" in container_status:
+                        container_status = "Running"
+                    elif "Created" in container_status:
+                        container_status = "Created"
                     
                     print(f"Syncing container: {container_name} - Status: {container_status}")
 
@@ -70,23 +106,43 @@ class PodmanManager:
                         datetime.now().isoformat()
                     ))
 
-                    # Get and insert logs
+                    # Get and insert logs (only for running containers to avoid errors)
                     try:
-                        log_text = self.get_logs(container_id)
-                        if log_text:
-                            log_lines = log_text.split('\n')
-                            for line in log_lines:
-                                if line.strip():
-                                    cur.execute("""
-                                        INSERT INTO logs (container_name, log, timestamp)
-                                        VALUES (?, ?, ?)
-                                    """, (
-                                        container_name,
-                                        line.strip(),
-                                        datetime.now().isoformat()
-                                    ))
+                        if container_state == "running":
+                            log_text = self.get_logs(container_id)
+                            if log_text:
+                                log_lines = log_text.split('\n')
+                                for line in log_lines:
+                                    if line.strip():
+                                        cur.execute("""
+                                            INSERT INTO logs (container_name, log, timestamp)
+                                            VALUES (?, ?, ?)
+                                        """, (
+                                            container_name,
+                                            line.strip(),
+                                            datetime.now().isoformat()
+                                        ))
+                        else:
+                            # For stopped containers, add a status message
+                            cur.execute("""
+                                INSERT INTO logs (container_name, log, timestamp)
+                                VALUES (?, ?, ?)
+                            """, (
+                                container_name,
+                                f"Container is {container_status}. Start container to see logs.",
+                                datetime.now().isoformat()
+                            ))
                     except Exception as e:
                         print(f"Error getting logs for {container_name}: {e}")
+                        # Add error to logs
+                        cur.execute("""
+                            INSERT INTO logs (container_name, log, timestamp)
+                            VALUES (?, ?, ?)
+                        """, (
+                            container_name,
+                            f"Error fetching logs: {str(e)}",
+                            datetime.now().isoformat()
+                        ))
                         
                 except Exception as e:
                     print(f"Error processing container: {e}")
@@ -157,3 +213,13 @@ class PodmanManager:
         except Exception as e:
             print(f"❌ Error restarting container {container_name}: {e}")
             return False
+
+    def start_container(self, container_name):
+        """Start a stopped Podman container."""
+        try:
+            self._run_cmd(["podman", "start", container_name])
+            print(f"✅ Container started: {container_name}")
+            return True
+        except Exception as e:
+            print(f"❌ Error starting container {container_name}: {e}")
+            return False    
