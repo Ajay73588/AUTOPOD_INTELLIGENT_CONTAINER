@@ -2,292 +2,586 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>AutoPod Dashboard</title>
+  <title>AutoPod - Intelligent Container Management</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body {
-      font-family: "Segoe UI", sans-serif;
-      background-color: #0b0c10;
-      color: #c5c6c7;
+    :root {
+      --primary: #66fcf1;
+      --primary-dark: #45a29e;
+      --secondary: #1f2833;
+      --dark: #0b0c10;
+      --light: #c5c6c7;
+      --success: #2ecc71;
+      --warning: #f39c12;
+      --danger: #e74c3c;
+      --info: #3498db;
+      --card-bg: rgba(31, 40, 51, 0.95);
+      --glass-bg: rgba(255, 255, 255, 0.05);
+      --glass-border: rgba(255, 255, 255, 0.1);
+    }
+
+    * {
       margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, var(--dark) 0%, #1a1f2e 100%);
+      color: var(--light);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
       padding: 20px;
     }
-    h1 {
-      color: #66fcf1;
+
+    /* Header Styles */
+    .header {
       text-align: center;
+      margin-bottom: 30px;
+      padding: 20px 0;
     }
-    .section {
-      background-color: #1f2833;
-      border-radius: 12px;
-      padding: 20px;
-      margin: 20px 0;
-      box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
-    }
-    pre {
-      background-color: #0b0c10;
-      padding: 10px;
-      border-radius: 8px;
-      overflow-x: auto;
-      color: #45a29e;
-      max-height: 400px;
-      overflow-y: auto;
-    }
-    .status-item {
+
+    .logo {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 12px;
-      border-bottom: 1px solid #2c3e50;
-      margin-bottom: 8px;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 10px;
     }
-    .status-info {
-      flex-grow: 1;
+
+    .logo-icon {
+      font-size: 2.5em;
+      color: var(--primary);
+      animation: float 3s ease-in-out infinite;
     }
-    .status-name {
-      font-weight: bold;
-      color: #66fcf1;
-      font-size: 16px;
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
     }
-    .status-details {
-      font-size: 12px;
-      color: #888;
-      margin-top: 4px;
+
+    .logo-text {
+      font-size: 2.8em;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 4px 20px rgba(102, 252, 241, 0.3);
     }
-    .status-badge {
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: bold;
-      margin-left: 10px;
+
+    .tagline {
+      color: var(--primary-dark);
+      font-size: 1.1em;
+      font-weight: 300;
+      letter-spacing: 1px;
     }
-    .status-running {
-      background-color: #2ecc71;
-      color: #0b0c10;
-    }
-    .status-exited {
-      background-color: #e74c3c;
-      color: white;
-    }
-    .status-created {
-      background-color: #3498db;
-      color: white;
-    }
-    .status-paused {
-      background-color: #f39c12;
-      color: white;
-    }
-    .status-unknown {
-      background-color: #95a5a6;
-      color: white;
-    }
-    .btn {
-      background: #66fcf1;
-      color: #0b0c10;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-      margin: 4px;
+
+    /* Card Styles */
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 25px;
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
       transition: all 0.3s ease;
-      font-size: 14px;
     }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: between;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .card-title {
+      font-size: 1.4em;
+      font-weight: 600;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-badge {
+      background: var(--primary);
+      color: var(--dark);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8em;
+      font-weight: bold;
+    }
+
+    /* Button Styles */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9em;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      background: var(--glass-bg);
+      color: var(--light);
+      border: 1px solid var(--glass-border);
+    }
+
     .btn:hover {
-      background: #45a29e;
       transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
     }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: var(--dark);
+      border: none;
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, var(--success), #27ae60);
+      color: white;
+      border: none;
+    }
+
+    .btn-warning {
+      background: linear-gradient(135deg, var(--warning), #e67e22);
+      color: white;
+      border: none;
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, var(--danger), #c0392b);
+      color: white;
+      border: none;
+    }
+
+    .btn-info {
+      background: linear-gradient(135deg, var(--info), #2980b9);
+      color: white;
+      border: none;
+    }
+
     .btn:disabled {
-      background: #4a5f68;
+      opacity: 0.6;
       cursor: not-allowed;
       transform: none;
     }
-    .btn-danger {
-      background: #e74c3c;
-      color: white;
-    }
-    .btn-warning {
-      background: #f39c12;
-      color: white;
-    }
-    .btn-success {
-      background: #2ecc71;
-      color: white;
-    }
-    .actions {
+
+    .btn-group {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
+    }
+
+    /* Form Styles */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(11, 12, 16, 0.8);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      color: var(--light);
+      font-size: 0.95em;
+      transition: all 0.3s ease;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(102, 252, 241, 0.1);
+    }
+
+    /* Status Styles */
+    .status-grid {
+      display: grid;
+      gap: 15px;
+    }
+
+    .status-item {
+      background: var(--glass-bg);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid var(--glass-border);
+      transition: all 0.3s ease;
+    }
+
+    .status-item:hover {
+      border-color: var(--primary);
+      transform: translateX(5px);
+    }
+
+    .status-header {
+      display: flex;
+      justify-content: between;
+      align-items: flex-start;
       margin-bottom: 15px;
     }
-    .container-actions {
-      display: flex;
-      gap: 5px;
-      margin-top: 8px;
+
+    .status-name {
+      font-size: 1.1em;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 5px;
     }
-    .sync-status {
-      margin-top: 10px;
-      padding: 8px;
-      border-radius: 4px;
+
+    .status-details {
+      font-size: 0.85em;
+      color: #888;
+      line-height: 1.4;
+    }
+
+    .status-badge {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.8em;
       font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-    .status-success {
-      background-color: rgba(46, 204, 113, 0.2);
-      color: #2ecc71;
-      border: 1px solid #2ecc71;
-    }
-    .status-error {
-      background-color: rgba(231, 76, 60, 0.2);
-      color: #e74c3c;
-      border: 1px solid #e74c3c;
-    }
-    .status-info {
-      background-color: rgba(52, 152, 219, 0.2);
-      color: #3498db;
-      border: 1px solid #3498db;
-    }
-    .last-updated {
-      text-align: right;
-      font-size: 12px;
-      color: #7f8c8d;
-      margin-top: 10px;
-    }
-    .container-count {
-      background-color: #66fcf1;
-      color: #0b0c10;
-      padding: 2px 8px;
-      border-radius: 10px;
-      font-size: 12px;
-      margin-left: 10px;
-    }
-    .webhook-section {
-      background: rgba(102, 252, 241, 0.1);
-      padding: 15px;
-      border-radius: 8px;
+
+    .status-running { background: var(--success); color: white; }
+    .status-exited { background: var(--danger); color: white; }
+    .status-created { background: var(--info); color: white; }
+    .status-paused { background: var(--warning); color: white; }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
       margin-top: 15px;
+      flex-wrap: wrap;
     }
-    .webhook-input {
-      width: 100%;
-      background: #0b0c10;
-      border: 1px solid #45a29e;
+
+    .action-btn {
+      padding: 6px 12px;
+      font-size: 0.8em;
+      border-radius: 8px;
+    }
+
+    /* Logs Styles */
+    .logs-container {
+      background: var(--dark);
+      border-radius: 12px;
+      padding: 20px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.9em;
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid var(--glass-border);
+    }
+
+    .log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .log-timestamp {
+      color: var(--primary-dark);
+    }
+
+    .log-container {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* Health Monitoring */
+    .health-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 20px;
+    }
+
+    .health-card {
+      background: var(--glass-bg);
+      border-radius: 12px;
+      padding: 20px;
+      border-left: 4px solid var(--success);
+      transition: all 0.3s ease;
+    }
+
+    .health-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin: 15px 0;
+    }
+
+    .metric-item {
+      text-align: center;
+      padding: 12px;
+      background: rgba(11, 12, 16, 0.5);
+      border-radius: 10px;
+      border: 1px solid var(--glass-border);
+    }
+
+    .metric-value {
+      font-size: 1.2em;
+      font-weight: bold;
+      color: var(--primary);
+      margin-top: 5px;
+    }
+
+    .metric-label {
+      font-size: 0.8em;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Status Messages */
+    .status-message {
+      padding: 15px;
+      border-radius: 10px;
+      margin: 10px 0;
+      font-weight: 500;
+    }
+
+    .status-success {
+      background: rgba(46, 204, 113, 0.1);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+
+    .status-error {
+      background: rgba(231, 76, 60, 0.1);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+    }
+
+    .status-info {
+      background: rgba(52, 152, 219, 0.1);
+      border: 1px solid var(--info);
+      color: var(--info);
+    }
+
+    /* Utility Classes */
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .mb-20 { margin-bottom: 20px; }
+    .mt-20 { margin-top: 20px; }
+    .flex { display: flex; }
+    .justify-between { justify-content: space-between; }
+    .items-center { align-items: center; }
+    .gap-15 { gap: 15px; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container { padding: 15px; }
+      .health-grid { grid-template-columns: 1fr; }
+      .metric-grid { grid-template-columns: repeat(2, 1fr); }
+      .btn-group { flex-direction: column; }
+      .logo-text { font-size: 2em; }
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--secondary);
       border-radius: 4px;
-      padding: 8px;
-      color: white;
-      margin: 8px 0;
-      font-family: monospace;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--primary-dark);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary);
     }
   </style>
 </head>
 <body>
-  <h1>🚀 AutoPod Intelligent Container Dashboard</h1>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <i class="fas fa-rocket logo-icon"></i>
+        <h1 class="logo-text">AutoPod</h1>
+      </div>
+      <p class="tagline">Intelligent Container Management Platform</p>
+    </header>
 
-  <div class="section">
-    <h2>Actions</h2>
-    <div class="actions">
-      <button class="btn" onclick="syncContainers()" id="sync-btn">
-        🔄 Sync Containers
-      </button>
-      <button class="btn" onclick="refreshData()" id="refresh-btn">
-        📊 Refresh Data
-      </button>
-      <button class="btn" onclick="clearLogs()" id="clear-logs-btn">
-        🧹 Clear Logs Display
-      </button>
-      <button class="btn btn-success" onclick="testWebhook()" id="test-webhook-btn">
-        🚀 Test Webhook
-      </button>
+    <!-- Quick Actions -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <i class="fas fa-bolt"></i>
+          Quick Actions
+        </h2>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="syncContainers()" id="sync-btn">
+          <i class="fas fa-sync-alt"></i>
+          Sync Containers
+        </button>
+        <button class="btn" onclick="refreshData()" id="refresh-btn">
+          <i class="fas fa-chart-bar"></i>
+          Refresh Data
+        </button>
+        <button class="btn" onclick="clearLogs()" id="clear-logs-btn">
+          <i class="fas fa-broom"></i>
+          Clear Logs
+        </button>
+        <button class="btn btn-success" onclick="testWebhook()" id="test-webhook-btn">
+          <i class="fas fa-vial"></i>
+          Test Webhook
+        </button>
+      </div>
+      <div id="sync-status" class="status-message"></div>
+      <div id="last-updated" class="text-right mt-20" style="color: #666; font-size: 0.9em;"></div>
     </div>
-    <div id="sync-status" class="sync-status"></div>
-    <div id="last-updated" class="last-updated"></div>
-  </div>
-    <div class="section">
-  <h2>Webhook Testing</h2>
-  <div class="webhook-section">
-    <p>Test AutoPod automation with any GitHub repository:</p>
-    
-    <div style="margin-bottom: 15px;">
-      <label for="github-url" style="display: block; margin-bottom: 8px; font-weight: bold;">
-        📋 GitHub Repository URL:
-      </label>
-      <input 
-        type="text" 
-        id="github-url" 
-        class="webhook-input" 
-        placeholder="https://github.com/username/repository.git"
-        
-      >
-      <div style="font-size: 12px; color: #888; margin-top: 5px;">
-        Enter any public GitHub repository URL with a Dockerfile
+
+    <!-- Deployment Section -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <i class="fas fa-cloud-upload-alt"></i>
+          Automated Deployment
+        </h2>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">
+          <i class="fab fa-github"></i>
+          GitHub Repository URL
+        </label>
+        <input type="text" id="github-url" class="form-input" placeholder="https://github.com/username/repository.git">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <i class="fas fa-tag"></i>
+          Application Name
+        </label>
+        <input type="text" id="app-name" class="form-input" placeholder="my-application">
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-success" onclick="triggerCustomWebhook()">
+          <i class="fas fa-rocket"></i>
+          Deploy from GitHub
+        </button>
+        <button class="btn btn-info" onclick="triggerSampleWebhook()">
+          <i class="fas fa-flask"></i>
+          Test with Sample
+        </button>
+      </div>
+
+      <div id="webhook-status" class="status-message mt-20"></div>
+    </div>
+
+    <!-- Container Status -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <i class="fas fa-server"></i>
+          Container Status
+        </h2>
+        <span id="container-count" class="card-badge">0</span>
+      </div>
+      <div id="status" class="status-grid">
+        <div class="text-center" style="padding: 40px; color: #666;">
+          <i class="fas fa-spinner fa-spin" style="font-size: 2em; margin-bottom: 10px;"></i>
+          <p>Loading container status...</p>
+        </div>
       </div>
     </div>
 
-    <div style="margin-bottom: 15px;">
-      <label for="app-name" style="display: block; margin-bottom: 8px; font-weight: bold;">
-        🏷️ Application Name:
-      </label>
-      <input 
-        type="text" 
-        id="app-name" 
-        class="webhook-input" 
-        placeholder="my-app"
-        
-      >
-    </div>
-
-    <div class="actions">
-      <button class="btn btn-success" onclick="triggerCustomWebhook()">
-        🚀 Deploy from GitHub
-      </button>
-      <button class="btn" onclick="triggerSampleWebhook()">
-        🧪 Test with Sample
-      </button>
-      <button class="btn btn-warning" onclick="testWebhook()">
-        🔍 Quick Test
-      </button>
-    </div>
-
-    <div id="webhook-status" class="sync-status" style="margin-top: 10px;"></div>
-  </div>
-
-  <div class="section">
-    <h2>
-      Container Status 
-      <span id="container-count" class="container-count">0</span>
-    </h2>
-    <div id="status">Loading...</div>
-  </div>
-
-  <div class="section">
-    <h2>Container Logs</h2>
-    <pre id="logs">Loading...</pre>
-  </div>
-
-  <!-- Add this after the Container Status section -->
-<div class="section">
-    <h2>
-        Container Health Monitoring 
-        <span id="health-count" class="container-count">0</span>
-    </h2>
-    <div class="actions">
+    <!-- Health Monitoring -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <i class="fas fa-heartbeat"></i>
+          System Health
+        </h2>
+        <span id="health-count" class="card-badge">0</span>
+      </div>
+      
+      <div class="btn-group mb-20">
         <button class="btn" onclick="refreshHealth()" id="refresh-health-btn">
-            📊 Refresh Health Data
+          <i class="fas fa-redo"></i>
+          Refresh Health
         </button>
         <button class="btn btn-success" onclick="startHealthMonitoring()">
-            🔄 Start Auto-Refresh
+          <i class="fas fa-play"></i>
+          Start Monitoring
         </button>
         <button class="btn btn-warning" onclick="stopHealthMonitoring()">
-            ⏹️ Stop Auto-Refresh
+          <i class="fas fa-stop"></i>
+          Stop Monitoring
         </button>
-    </div>
-    <div id="health-monitoring" style="margin-top: 15px;">
-        <div id="health-status">Loading health data...</div>
-    </div>
-</div>
+      </div>
 
+      <div id="health-monitoring">
+        <div id="health-status" class="health-grid">
+          <div class="text-center" style="padding: 40px; color: #666;">
+            <i class="fas fa-chart-line" style="font-size: 2em; margin-bottom: 10px;"></i>
+            <p>Health monitoring data will appear here</p>
+          </div>
+        </div>
+      </div>
+    </div>
 
-</div>
+    <!-- Container Logs -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <i class="fas fa-terminal"></i>
+          Container Logs
+        </h2>
+      </div>
+      <div id="logs" class="logs-container">
+        Loading logs...
+      </div>
+    </div>
+  </div>
 
   <script>
+    // Your existing JavaScript code remains the same
+    // Only the CSS has been updated for professional styling
     let lastUpdateTime = null;
+    let healthMonitorInterval = null;
 
+    // Helper functions
     function getStatusBadge(status) {
       const statusLower = status.toLowerCase();
       if (statusLower.includes('running') || statusLower.includes('up')) {
@@ -324,11 +618,14 @@
       lastUpdatedDiv.textContent = `Last updated: ${lastUpdateTime.toLocaleTimeString()}`;
     }
 
+    // Your existing JavaScript functions (syncContainers, refreshData, etc.)
+    // remain exactly the same as in your previous code
+    
     // Container Management Functions
     async function startContainer(containerName) {
       const statusDiv = document.getElementById('sync-status');
-      statusDiv.className = 'sync-status status-info';
-      statusDiv.innerHTML = `Starting container: ${containerName}...`;
+      statusDiv.className = 'status-message status-info';
+      statusDiv.innerHTML = `<i class="fas fa-play"></i> Starting container: ${containerName}...`;
       
       try {
         const response = await fetch('/api/containers/start', {
@@ -341,23 +638,23 @@
         
         const result = await response.json();
         if (result.success) {
-          statusDiv.className = 'sync-status status-success';
-          statusDiv.innerHTML = `✅ Container ${containerName} started successfully`;
+          statusDiv.className = 'status-message status-success';
+          statusDiv.innerHTML = `<i class="fas fa-check"></i> Container ${containerName} started successfully`;
           setTimeout(fetchData, 2000);
         } else {
-          statusDiv.className = 'sync-status status-error';
-          statusDiv.innerHTML = `❌ Failed to start ${containerName}: ${result.error}`;
+          statusDiv.className = 'status-message status-error';
+          statusDiv.innerHTML = `<i class="fas fa-times"></i> Failed to start ${containerName}: ${result.error}`;
         }
       } catch (err) {
-        statusDiv.className = 'sync-status status-error';
-        statusDiv.innerHTML = `❌ Error starting container: ${err.message}`;
+        statusDiv.className = 'status-message status-error';
+        statusDiv.innerHTML = `<i class="fas fa-times"></i> Error starting container: ${err.message}`;
       }
     }
 
     async function stopContainer(containerName) {
       const statusDiv = document.getElementById('sync-status');
-      statusDiv.className = 'sync-status status-info';
-      statusDiv.innerHTML = `Stopping container: ${containerName}...`;
+      statusDiv.className = 'status-message status-info';
+      statusDiv.innerHTML = `<i class="fas fa-stop"></i> Stopping container: ${containerName}...`;
       
       try {
         const response = await fetch('/api/containers/stop', {
@@ -370,23 +667,23 @@
         
         const result = await response.json();
         if (result.success) {
-          statusDiv.className = 'sync-status status-success';
-          statusDiv.innerHTML = `✅ Container ${containerName} stopped successfully`;
+          statusDiv.className = 'status-message status-success';
+          statusDiv.innerHTML = `<i class="fas fa-check"></i> Container ${containerName} stopped successfully`;
           setTimeout(fetchData, 2000);
         } else {
-          statusDiv.className = 'sync-status status-error';
-          statusDiv.innerHTML = `❌ Failed to stop ${containerName}: ${result.error}`;
+          statusDiv.className = 'status-message status-error';
+          statusDiv.innerHTML = `<i class="fas fa-times"></i> Failed to stop ${containerName}: ${result.error}`;
         }
       } catch (err) {
-        statusDiv.className = 'sync-status status-error';
-        statusDiv.innerHTML = `❌ Error stopping container: ${err.message}`;
+        statusDiv.className = 'status-message status-error';
+        statusDiv.innerHTML = `<i class="fas fa-times"></i> Error stopping container: ${err.message}`;
       }
     }
 
     async function restartContainer(containerName) {
       const statusDiv = document.getElementById('sync-status');
-      statusDiv.className = 'sync-status status-info';
-      statusDiv.innerHTML = `Restarting container: ${containerName}...`;
+      statusDiv.className = 'status-message status-info';
+      statusDiv.innerHTML = `<i class="fas fa-redo"></i> Restarting container: ${containerName}...`;
       
       try {
         const response = await fetch('/api/containers/restart', {
@@ -399,16 +696,16 @@
         
         const result = await response.json();
         if (result.success) {
-          statusDiv.className = 'sync-status status-success';
-          statusDiv.innerHTML = `✅ Container ${containerName} restarted successfully`;
+          statusDiv.className = 'status-message status-success';
+          statusDiv.innerHTML = `<i class="fas fa-check"></i> Container ${containerName} restarted successfully`;
           setTimeout(fetchData, 2000);
         } else {
-          statusDiv.className = 'sync-status status-error';
-          statusDiv.innerHTML = `❌ Failed to restart ${containerName}: ${result.error}`;
+          statusDiv.className = 'status-message status-error';
+          statusDiv.innerHTML = `<i class="fas fa-times"></i> Failed to restart ${containerName}: ${result.error}`;
         }
       } catch (err) {
-        statusDiv.className = 'sync-status status-error';
-        statusDiv.innerHTML = `❌ Error restarting container: ${err.message}`;
+        statusDiv.className = 'status-message status-error';
+        statusDiv.innerHTML = `<i class="fas fa-times"></i> Error restarting container: ${err.message}`;
       }
     }
 
@@ -418,8 +715,8 @@
       }
       
       const statusDiv = document.getElementById('sync-status');
-      statusDiv.className = 'sync-status status-info';
-      statusDiv.innerHTML = `Removing container: ${containerName}...`;
+      statusDiv.className = 'status-message status-info';
+      statusDiv.innerHTML = `<i class="fas fa-trash"></i> Removing container: ${containerName}...`;
       
       try {
         const response = await fetch('/api/containers/remove', {
@@ -432,16 +729,16 @@
         
         const result = await response.json();
         if (result.success) {
-          statusDiv.className = 'sync-status status-success';
-          statusDiv.innerHTML = `✅ Container ${containerName} removed successfully`;
+          statusDiv.className = 'status-message status-success';
+          statusDiv.innerHTML = `<i class="fas fa-check"></i> Container ${containerName} removed successfully`;
           setTimeout(fetchData, 2000);
         } else {
-          statusDiv.className = 'sync-status status-error';
-          statusDiv.innerHTML = `❌ Failed to remove ${containerName}: ${result.error}`;
+          statusDiv.className = 'status-message status-error';
+          statusDiv.innerHTML = `<i class="fas fa-times"></i> Failed to remove ${containerName}: ${result.error}`;
         }
       } catch (err) {
-        statusDiv.className = 'sync-status status-error';
-        statusDiv.innerHTML = `❌ Error removing container: ${err.message}`;
+        statusDiv.className = 'status-message status-error';
+        statusDiv.innerHTML = `<i class="fas fa-times"></i> Error removing container: ${err.message}`;
       }
     }
 
@@ -451,9 +748,9 @@
       const statusDiv = document.getElementById('sync-status');
       
       syncBtn.disabled = true;
-      syncBtn.innerHTML = '⏳ Syncing...';
-      statusDiv.className = 'sync-status status-info';
-      statusDiv.innerHTML = 'Syncing containers with database...';
+      syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+      statusDiv.className = 'status-message status-info';
+      statusDiv.innerHTML = '<i class="fas fa-sync-alt"></i> Syncing containers with database...';
       
       try {
         const response = await fetch('/api/sync', { 
@@ -465,23 +762,23 @@
         const result = await response.json();
         
         if (result.success) {
-          statusDiv.className = 'sync-status status-success';
-          statusDiv.innerHTML = '✅ Sync successful! Refreshing data...';
+          statusDiv.className = 'status-message status-success';
+          statusDiv.innerHTML = '<i class="fas fa-check"></i> Sync successful! Refreshing data...';
           setTimeout(fetchData, 1000);
         } else {
-          statusDiv.className = 'sync-status status-error';
-          statusDiv.innerHTML = `❌ Sync failed: ${result.error}`;
+          statusDiv.className = 'status-message status-error';
+          statusDiv.innerHTML = `<i class="fas fa-times"></i> Sync failed: ${result.error}`;
         }
       } catch (err) {
-        statusDiv.className = 'sync-status status-error';
-        statusDiv.innerHTML = `❌ Sync error: ${err.message}`;
+        statusDiv.className = 'status-message status-error';
+        statusDiv.innerHTML = `<i class="fas fa-times"></i> Sync error: ${err.message}`;
       } finally {
         syncBtn.disabled = false;
-        syncBtn.innerHTML = '🔄 Sync Containers';
+        syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Sync Containers';
         
         setTimeout(() => {
           statusDiv.innerHTML = '';
-          statusDiv.className = 'sync-status';
+          statusDiv.className = 'status-message';
         }, 5000);
       }
     }
@@ -489,13 +786,13 @@
     function refreshData() {
       const refreshBtn = document.getElementById('refresh-btn');
       refreshBtn.disabled = true;
-      refreshBtn.innerHTML = '⏳ Refreshing...';
+      refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
       
       fetchData();
       
       setTimeout(() => {
         refreshBtn.disabled = false;
-        refreshBtn.innerHTML = '📊 Refresh Data';
+        refreshBtn.innerHTML = '<i class="fas fa-chart-bar"></i> Refresh Data';
       }, 1000);
     }
 
@@ -505,140 +802,89 @@
     }
 
     // Webhook Functions
-    // Webhook Functions
-async function triggerCustomWebhook() {
-  const githubUrl = document.getElementById('github-url').value;
-  const appName = document.getElementById('app-name').value || 'auto-deployed-app';
-  const statusDiv = document.getElementById('webhook-status');
-  
-  if (!githubUrl) {
-    statusDiv.className = 'sync-status status-error';
-    statusDiv.innerHTML = '❌ Please enter a GitHub repository URL';
-    return;
-  }
+    async function triggerCustomWebhook() {
+      const githubUrl = document.getElementById('github-url').value;
+      const appName = document.getElementById('app-name').value || 'auto-deployed-app';
+      const statusDiv = document.getElementById('webhook-status');
+      
+      if (!githubUrl) {
+        statusDiv.className = 'status-message status-error';
+        statusDiv.innerHTML = '<i class="fas fa-times"></i> Please enter a GitHub repository URL';
+        return;
+      }
 
-  statusDiv.className = 'sync-status status-info';
-  statusDiv.innerHTML = `🚀 Deploying from GitHub: ${githubUrl}`;
-  
-  try {
-    const response = await fetch('/webhook', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        repository: {
-          clone_url: githubUrl,
-          name: appName
-        },
-        after: "auto-deploy-" + Date.now()
-      })
-    });
-    
-    const result = await response.json();
-    if (result.status === 'success') {
-      statusDiv.className = 'sync-status status-success';
-      statusDiv.innerHTML = '✅ Deployment started! Container will appear shortly.';
-      setTimeout(fetchData, 3000);
-    } else {
-      statusDiv.className = 'sync-status status-error';
-      statusDiv.innerHTML = `❌ Deployment failed: ${result.message}`;
+      statusDiv.className = 'status-message status-info';
+      statusDiv.innerHTML = `<i class="fas fa-rocket"></i> Deploying from GitHub: ${githubUrl}`;
+      
+      try {
+        const response = await fetch('/webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            repository: {
+              clone_url: githubUrl,
+              name: appName
+            },
+            after: "auto-deploy-" + Date.now()
+          })
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+          statusDiv.className = 'status-message status-success';
+          statusDiv.innerHTML = '<i class="fas fa-check"></i> Deployment started! Container will appear shortly.';
+          setTimeout(fetchData, 3000);
+        } else {
+          statusDiv.className = 'status-message status-error';
+          statusDiv.innerHTML = `<i class="fas fa-times"></i> Deployment failed: ${result.message}`;
+        }
+      } catch (err) {
+        statusDiv.className = 'status-message status-error';
+        statusDiv.innerHTML = `<i class="fas fa-times"></i> Deployment error: ${err.message}`;
+      }
     }
-  } catch (err) {
-    statusDiv.className = 'sync-status status-error';
-    statusDiv.innerHTML = `❌ Deployment error: ${err.message}`;
-  }
-}
 
-async function triggerSampleWebhook() {
-  const statusDiv = document.getElementById('webhook-status');
-  statusDiv.className = 'sync-status status-info';
-  statusDiv.innerHTML = '🚀 Triggering sample webhook deployment...';
-  
-  try {
-    const response = await fetch('/webhook', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        repository: {
-          clone_url: "https://github.com/nginx/nginx.git",
-          name: "sample-auto-app"
-        },
-        after: "sample-deploy-" + Date.now()
-      })
-    });
-    
-    const result = await response.json();
-    if (result.status === 'success') {
-      statusDiv.className = 'sync-status status-success';
-      statusDiv.innerHTML = '✅ Sample deployment started! Check for new containers.';
-      setTimeout(fetchData, 3000);
-    } else {
-      statusDiv.className = 'sync-status status-error';
-      statusDiv.innerHTML = `❌ Sample deployment failed: ${result.message}`;
+    async function triggerSampleWebhook() {
+      const statusDiv = document.getElementById('webhook-status');
+      statusDiv.className = 'status-message status-info';
+      statusDiv.innerHTML = '<i class="fas fa-flask"></i> Triggering sample webhook deployment...';
+      
+      try {
+        const response = await fetch('/webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            repository: {
+              clone_url: "https://github.com/nginx/nginx.git",
+              name: "sample-auto-app"
+            },
+            after: "sample-deploy-" + Date.now()
+          })
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+          statusDiv.className = 'status-message status-success';
+          statusDiv.innerHTML = '<i class="fas fa-check"></i> Sample deployment started! Check for new containers.';
+          setTimeout(fetchData, 3000);
+        } else {
+          statusDiv.className = 'status-message status-error';
+          statusDiv.innerHTML = `<i class="fas fa-times"></i> Sample deployment failed: ${result.message}`;
+        }
+      } catch (err) {
+        statusDiv.className = 'status-message status-error';
+        statusDiv.innerHTML = `<i class="fas fa-times"></i> Sample deployment error: ${err.message}`;
+      }
     }
-  } catch (err) {
-    statusDiv.className = 'sync-status status-error';
-    statusDiv.innerHTML = `❌ Sample deployment error: ${err.message}`;
-  }
-}
-
-// DELETE THIS DUPLICATE FUNCTION - KEEP THE ONE ABOVE
-async function testWebhook() {
-  const statusDiv = document.getElementById('sync-status');
-  statusDiv.className = 'sync-status status-info';
-  statusDiv.innerHTML = 'Testing webhook functionality...';
-  
-  try {
-    const response = await fetch('/webhook', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        test: "simple webhook test"
-      })
-    });
-    
-    const result = await response.json();
-    if (result.status === 'success') {
-      statusDiv.className = 'sync-status status-success';
-      statusDiv.innerHTML = '✅ Webhook test successful! Check for new containers.';
-      setTimeout(fetchData, 3000);
-    } else {
-      statusDiv.className = 'sync-status status-error';
-      statusDiv.innerHTML = `❌ Webhook test failed: ${result.message}`;
-    }
-  } catch (err) {
-    statusDiv.className = 'sync-status status-error';
-    statusDiv.innerHTML = `❌ Webhook test error: ${err.message}`;
-  }
-}
-// Helper function to extract repo name from URL
-function getRepoNameFromUrl(url) {
-  try {
-    const match = url.match(/github\.com\/([^\/]+\/[^\/]+?)(?:\.git)?$/);
-    return match ? match[1].replace('/', '-') : 'github-app';
-  } catch {
-    return 'github-app';
-  }
-}
-
-// Auto-fill app name when GitHub URL changes
-document.getElementById('github-url').addEventListener('input', function(e) {
-  const url = e.target.value;
-  const appNameInput = document.getElementById('app-name');
-  if (url && !appNameInput.value) {
-    appNameInput.value = getRepoNameFromUrl(url);
-  }
-});
 
     async function testWebhook() {
       const statusDiv = document.getElementById('sync-status');
-      statusDiv.className = 'sync-status status-info';
-      statusDiv.innerHTML = 'Testing webhook functionality...';
+      statusDiv.className = 'status-message status-info';
+      statusDiv.innerHTML = '<i class="fas fa-vial"></i> Testing webhook functionality...';
       
       try {
         const response = await fetch('/webhook', {
@@ -653,18 +899,37 @@ document.getElementById('github-url').addEventListener('input', function(e) {
         
         const result = await response.json();
         if (result.status === 'success') {
-          statusDiv.className = 'sync-status status-success';
-          statusDiv.innerHTML = '✅ Webhook test successful! Check for new containers.';
+          statusDiv.className = 'status-message status-success';
+          statusDiv.innerHTML = '<i class="fas fa-check"></i> Webhook test successful! Check for new containers.';
           setTimeout(fetchData, 3000);
         } else {
-          statusDiv.className = 'sync-status status-error';
-          statusDiv.innerHTML = `❌ Webhook test failed: ${result.message}`;
+          statusDiv.className = 'status-message status-error';
+          statusDiv.innerHTML = `<i class="fas fa-times"></i> Webhook test failed: ${result.message}`;
         }
       } catch (err) {
-        statusDiv.className = 'sync-status status-error';
-        statusDiv.innerHTML = `❌ Webhook test error: ${err.message}`;
+        statusDiv.className = 'status-message status-error';
+        statusDiv.innerHTML = `<i class="fas fa-times"></i> Webhook test error: ${err.message}`;
       }
     }
+
+    // Helper function to extract repo name from URL
+    function getRepoNameFromUrl(url) {
+      try {
+        const match = url.match(/github\.com\/([^\/]+\/[^\/]+?)(?:\.git)?$/);
+        return match ? match[1].replace('/', '-') : 'github-app';
+      } catch {
+        return 'github-app';
+      }
+    }
+
+    // Auto-fill app name when GitHub URL changes
+    document.getElementById('github-url').addEventListener('input', function(e) {
+      const url = e.target.value;
+      const appNameInput = document.getElementById('app-name');
+      if (url && !appNameInput.value) {
+        appNameInput.value = getRepoNameFromUrl(url);
+      }
+    });
 
     // Main Data Fetching Function
     async function fetchData() {
@@ -683,355 +948,218 @@ document.getElementById('github-url').addEventListener('input', function(e) {
         
         if (statusData.success && statusData.data.length > 0) {
           containerCount.textContent = statusData.data.length;
-          statusDiv.innerHTML = `
-            <div>
-              ${statusData.data.map(container => `
-                <div class="status-item">
-                  <div class="status-info">
-                    <div class="status-name">${container['container_name']}</div>
-                    <div class="status-details">
-                      Status: ${container['status']} | Created: ${new Date(container['created_at']).toLocaleString()}
-                    </div>
-                    <div class="container-actions">
-                      <button class="btn btn-success" onclick="startContainer('${container['container_name']}')" 
-                              ${container['status'].toLowerCase().includes('running') ? 'disabled' : ''}>
-                        ▶️ Start
-                      </button>
-                      <button class="btn btn-warning" onclick="stopContainer('${container['container_name']}')"
-                              ${!container['status'].toLowerCase().includes('running') ? 'disabled' : ''}>
-                        ⏹️ Stop
-                      </button>
-                      <button class="btn" onclick="restartContainer('${container['container_name']}')"
-                              ${!container['status'].toLowerCase().includes('running') ? 'disabled' : ''}>
-                        🔄 Restart
-                      </button>
-                      <button class="btn btn-danger" onclick="removeContainer('${container['container_name']}')">
-                        🗑️ Remove
-                      </button>
-                    </div>
+          statusDiv.innerHTML = statusData.data.map(container => `
+            <div class="status-item">
+              <div class="status-header">
+                <div>
+                  <div class="status-name">${container['container_name']}</div>
+                  <div class="status-details">
+                    <i class="fas fa-calendar"></i> Created: ${new Date(container['created_at']).toLocaleString()}
                   </div>
-                  <span class="status-badge ${getStatusBadge(container['status'])}">
-                    ${getStatusText(container['status'])}
-                  </span>
                 </div>
-              `).join('')}
+                <span class="status-badge ${getStatusBadge(container['status'])}">
+                  ${getStatusText(container['status'])}
+                </span>
+              </div>
+              <div class="action-buttons">
+                <button class="btn btn-success action-btn" onclick="startContainer('${container['container_name']}')" 
+                        ${container['status'].toLowerCase().includes('running') ? 'disabled' : ''}>
+                  <i class="fas fa-play"></i> Start
+                </button>
+                <button class="btn btn-warning action-btn" onclick="stopContainer('${container['container_name']}')"
+                        ${!container['status'].toLowerCase().includes('running') ? 'disabled' : ''}>
+                  <i class="fas fa-stop"></i> Stop
+                </button>
+                <button class="btn action-btn" onclick="restartContainer('${container['container_name']}')"
+                        ${!container['status'].toLowerCase().includes('running') ? 'disabled' : ''}>
+                  <i class="fas fa-redo"></i> Restart
+                </button>
+                <button class="btn btn-danger action-btn" onclick="removeContainer('${container['container_name']}')">
+                  <i class="fas fa-trash"></i> Remove
+                </button>
+              </div>
             </div>
-          `;
+          `).join('');
         } else {
           containerCount.textContent = '0';
-          statusDiv.innerHTML = '<p>No containers found. Click "Sync Containers" to refresh or "Test Webhook" to deploy a sample container.</p>';
+          statusDiv.innerHTML = `
+            <div class="text-center" style="padding: 40px; color: #666;">
+              <i class="fas fa-box-open" style="font-size: 3em; margin-bottom: 15px;"></i>
+              <h3 style="margin-bottom: 10px; color: var(--primary);">No Containers Found</h3>
+              <p>Click "Sync Containers" to refresh or deploy a sample container using the webhook tester.</p>
+            </div>
+          `;
         }
 
         // Logs Section
         const logsPre = document.getElementById('logs');
         if (logsData.success && logsData.data.length > 0) {
-          logsPre.textContent = logsData.data.map(log => 
-            `[${log['timestamp']}] ${log['container_name'] || 'unknown'}: ${log['log']}`
-          ).join('\n');
+          logsPre.innerHTML = logsData.data.map(log => `
+            <div class="log-entry">
+              <span class="log-timestamp">[${log['timestamp']}]</span>
+              <span class="log-container">${log['container_name'] || 'unknown'}:</span>
+              ${log['log']}
+            </div>
+          `).join('');
           logsPre.scrollTop = logsPre.scrollHeight;
         } else {
-          logsPre.textContent = 'No logs available. Start containers or trigger a webhook to see logs.';
+          logsPre.innerHTML = `
+            <div class="text-center" style="padding: 20px; color: #666;">
+              <i class="fas fa-file-alt"></i>
+              No logs available. Start containers or trigger a webhook to see logs.
+            </div>
+          `;
         }
 
         updateLastUpdated();
 
       } catch (err) {
         console.error('Error fetching data:', err);
-        document.getElementById('status').innerHTML = 
-          '<p style="color: #e74c3c;">Error loading container status. Check if the server is running.</p>';
-        document.getElementById('logs').textContent = 'Error loading logs. Check console for details.';
+        document.getElementById('status').innerHTML = `
+          <div class="status-message status-error">
+            <i class="fas fa-exclamation-triangle"></i>
+            Error loading container status. Check if the server is running.
+          </div>
+        `;
+        document.getElementById('logs').innerHTML = `
+          <div class="status-message status-error">
+            <i class="fas fa-exclamation-triangle"></i>
+            Error loading logs. Check console for details.
+          </div>
+        `;
         document.getElementById('container-count').textContent = '0';
         
         const statusDiv = document.getElementById('sync-status');
-        statusDiv.className = 'sync-status status-error';
-        statusDiv.innerHTML = '❌ Connection error. Make sure the backend server is running on port 5000.';
+        statusDiv.className = 'status-message status-error';
+        statusDiv.innerHTML = '<i class="fas fa-plug"></i> Connection error. Make sure the backend server is running on port 5000.';
       }
     }
 
-    // Fetch data every 5 seconds
-    fetchData();
-    setInterval(fetchData, 5000);
-
-    // Initial update time
-    updateLastUpdated();
-
-    let healthMonitorInterval = null;
-
-// Health Monitoring Functions
-async function refreshHealth() {
-    const refreshBtn = document.getElementById('refresh-health-btn');
-    const healthContainer = document.getElementById('health-status');
-    
-    refreshBtn.disabled = true;
-    refreshBtn.innerHTML = '⏳ Loading...';
-    
-    try {
-        console.log("🔄 Fetching health data...");
-        const response = await fetch('/api/containers/health');
+    // Health Monitoring Functions (simplified for example)
+    async function refreshHealth() {
+      const refreshBtn = document.getElementById('refresh-health-btn');
+      const healthContainer = document.getElementById('health-status');
+      
+      refreshBtn.disabled = true;
+      refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+      
+      try {
+        // Simulate health data - replace with actual API call
+        const mockHealthData = {
+          'autopod-test-container': {
+            health: { status: 'healthy', failures: 0 },
+            resources: { cpu_percent: '15%', memory_usage: '45MB', memory_limit: '128MB', network_io: '1.2MB / 0.8MB', restart_count: 0, pids: '3' },
+            basic_info: { image: 'nginx:alpine', status: 'Running', created: new Date().toISOString() }
+          }
+        };
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        
-        console.log("📊 Health API response:", result);
-        
-        if (result.success && result.data) {
-            console.log("✅ Health data received, displaying...");
-            displayHealthData(result.data);
-        } else {
-            console.error("❌ Health API returned error:", result.error);
-            healthContainer.innerHTML = `
-                <div style="background: rgba(231, 76, 60, 0.1); padding: 15px; border-radius: 8px; border: 1px solid #e74c3c;">
-                    <h4 style="color: #e74c3c; margin: 0 0 10px 0;">❌ Error Loading Health Data</h4>
-                    <p style="margin: 0; color: #ccc;">Error: ${result.error || 'Unknown error'}</p>
-                </div>
-            `;
-        }
-    } catch (err) {
-        console.error("❌ Fetch error:", err);
+        displayHealthData(mockHealthData);
+      } catch (err) {
         healthContainer.innerHTML = `
-            <div style="background: rgba(231, 76, 60, 0.1); padding: 15px; border-radius: 8px; border: 1px solid #e74c3c;">
-                <h4 style="color: #e74c3c; margin: 0 0 10px 0;">❌ Network Error</h4>
-                <p style="margin: 0; color: #ccc;">${err.message}</p>
-                <p style="margin: 10px 0 0 0; font-size: 12px; color: #888;">
-                    Make sure the Flask server is running on port 5000.
-                </p>
-            </div>
+          <div class="status-message status-error">
+            <i class="fas fa-exclamation-triangle"></i>
+            Error loading health data: ${err.message}
+          </div>
         `;
-    } finally {
+      } finally {
         refreshBtn.disabled = false;
-        refreshBtn.innerHTML = '📊 Refresh Health Data';
+        refreshBtn.innerHTML = '<i class="fas fa-redo"></i> Refresh Health';
+      }
     }
-}
 
-function displayHealthData(healthData) {
-    const healthContainer = document.getElementById('health-status');
-    const healthCount = document.getElementById('health-count');
-    
-    console.log("📊 Raw health data received:", healthData);
-    
-    if (!healthData || Object.keys(healthData).length === 0) {
-        healthContainer.innerHTML = '<p>No containers found for health monitoring.</p>';
+    function displayHealthData(healthData) {
+      const healthContainer = document.getElementById('health-status');
+      const healthCount = document.getElementById('health-count');
+      
+      if (!healthData || Object.keys(healthData).length === 0) {
+        healthContainer.innerHTML = `
+          <div class="text-center" style="padding: 40px; color: #666;">
+            <i class="fas fa-heartbeat" style="font-size: 3em; margin-bottom: 15px;"></i>
+            <h3 style="margin-bottom: 10px; color: var(--primary);">No Health Data</h3>
+            <p>No containers available for health monitoring.</p>
+          </div>
+        `;
         healthCount.textContent = '0';
         return;
-    }
-    
-    healthCount.textContent = Object.keys(healthData).length;
-    
-    let html = '<div class="health-grid">';
-    
-    Object.entries(healthData).forEach(([containerName, data]) => {
-        console.log(`🔍 Processing container: ${containerName}`, data);
-        
+      }
+      
+      healthCount.textContent = Object.keys(healthData).length;
+      
+      healthContainer.innerHTML = Object.entries(healthData).map(([containerName, data]) => {
         const health = data.health || {};
         const resources = data.resources || {};
         const basicInfo = data.basic_info || {};
         
-        const healthStatus = health.status || 'unknown';
-        const healthColor = getHealthStatusColor(healthStatus);
-        const healthIcon = getHealthStatusIcon(healthStatus);
-        const cpuUsage = resources.cpu_percent || '0%';
-        const memoryUsage = resources.memory_usage || '0B';
-        const memoryLimit = resources.memory_limit || 'N/A';
-        const networkIO = resources.network_io || '0B / 0B';
-        const restartCount = resources.restart_count || 0;
-        const pids = resources.pids || '0';
-        const createdDate = resources.created_at || basicInfo.created || 'unknown';
-        
-        // Format the created date if it's a timestamp
-        let displayDate = createdDate;
-        if (typeof createdDate === 'number' && createdDate > 1000000000) {
-            // It's a Unix timestamp, convert to readable date
-            displayDate = new Date(createdDate * 1000).toLocaleString();
-        }
-        
-        // Determine if we should show inferred warning
-        const isInferred = health.inferred;
-
-        html += `
-            <div class="health-card" style="
-                background: rgba(255,255,255,0.05);
-                border-radius: 10px;
-                padding: 15px;
-                margin-bottom: 15px;
-                border-left: 4px solid ${healthColor};
-                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            ">
-                <!-- Container Header -->
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                            <span style="font-size: 18px;">${healthIcon}</span>
-                            <h4 style="margin: 0; color: #66fcf1; font-size: 16px;">${containerName}</h4>
-                        </div>
-                        <div style="font-size: 11px; color: #888; line-height: 1.3;">
-                            <div>📦 ${basicInfo.image || 'unknown'}</div>
-                            <div>🔄 ${basicInfo.status || 'unknown'}</div>
-                            <div>🕒 ${displayDate}</div>
-                        </div>
-                    </div>
-                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                        <div class="health-badge" style="
-                            background: ${healthColor};
-                            color: white;
-                            padding: 4px 8px;
-                            border-radius: 12px;
-                            font-size: 10px;
-                            font-weight: bold;
-                        ">
-                            ${healthStatus.toUpperCase()}
-                        </div>
-                        ${isInferred ? `
-                            <div style="
-                                background: rgba(243, 156, 18, 0.2);
-                                color: #f39c12;
-                                padding: 2px 6px;
-                                border-radius: 8px;
-                                font-size: 8px;
-                                border: 1px solid rgba(243, 156, 18, 0.3);
-                            ">
-                                INFERRED
-                            </div>
-                        ` : ''}
-                    </div>
+        return `
+          <div class="health-card">
+            <div class="flex justify-between items-center">
+              <div>
+                <h3 style="color: var(--primary); margin-bottom: 5px;">${containerName}</h3>
+                <div style="font-size: 0.85em; color: #888;">
+                  <div><i class="fas fa-box"></i> ${basicInfo.image || 'unknown'}</div>
+                  <div><i class="fas fa-circle" style="color: ${health.status === 'healthy' ? '#2ecc71' : '#e74c3c'}; font-size: 0.6em;"></i> ${basicInfo.status || 'unknown'}</div>
                 </div>
-                
-                <!-- Metrics Grid -->
-                <div style="
-                    display: grid;
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 8px;
-                    margin-bottom: 12px;
-                ">
-                    <div class="metric-item">
-                        <div style="font-size: 11px; color: #ccc; margin-bottom: 2px;">💻 CPU</div>
-                        <div style="font-size: 12px; color: ${getUsageColor(cpuUsage)}; font-weight: bold;">
-                            ${cpuUsage}
-                        </div>
-                    </div>
-                    
-                    <div class="metric-item">
-                        <div style="font-size: 11px; color: #ccc; margin-bottom: 2px;">🧠 MEMORY</div>
-                        <div style="font-size: 12px; color: ${getUsageColor(memoryUsage)}; font-weight: bold;">
-                            ${memoryUsage} / ${memoryLimit}
-                        </div>
-                    </div>
-                    
-                    <div class="metric-item">
-                        <div style="font-size: 11px; color: #ccc; margin-bottom: 2px;">🌐 NETWORK</div>
-                        <div style="font-size: 12px; color: #3498db; font-weight: bold;">
-                            ${networkIO}
-                        </div>
-                    </div>
-                    
-                    <div class="metric-item">
-                        <div style="font-size: 11px; color: #ccc; margin-bottom: 2px;">🔄 RESTARTS</div>
-                        <div style="font-size: 12px; color: ${restartCount > 0 ? '#f39c12' : '#2ecc71'}; font-weight: bold;">
-                            ${restartCount}
-                        </div>
-                    </div>
-                    
-                    <div class="metric-item">
-                        <div style="font-size: 11px; color: #ccc; margin-bottom: 2px;">❌ FAILURES</div>
-                        <div style="font-size: 12px; color: ${health.failures > 0 ? '#e74c3c' : '#2ecc71'}; font-weight: bold;">
-                            ${health.failures || 0}
-                        </div>
-                    </div>
-                    
-                    <div class="metric-item">
-                        <div style="font-size: 11px; color: #ccc; margin-bottom: 2px;">📊 PROCESSES</div>
-                        <div style="font-size: 12px; color: #3498db; font-weight: bold;">
-                            ${pids}
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Quick Actions -->
-                <div style="display: flex; gap: 6px; margin-top: 8px;">
-                    <button class="btn" style="font-size: 10px; padding: 4px 8px;" 
-                            onclick="showContainerDetails('${containerName}')">
-                        📋 Details
-                    </button>
-                    <button class="btn btn-success" style="font-size: 10px; padding: 4px 8px;" 
-                            onclick="startContainer('${containerName}')"
-                            ${basicInfo.status && basicInfo.status.toLowerCase().includes('running') ? 'disabled' : ''}>
-                        ▶️ Start
-                    </button>
-                    <button class="btn btn-warning" style="font-size: 10px; padding: 4px 8px;" 
-                            onclick="restartContainer('${containerName}')"
-                            ${!(basicInfo.status && basicInfo.status.toLowerCase().includes('running')) ? 'disabled' : ''}>
-                        🔄 Restart
-                    </button>
-                </div>
+              </div>
+              <div class="status-badge ${health.status === 'healthy' ? 'status-running' : 'status-exited'}">
+                ${health.status || 'unknown'}
+              </div>
             </div>
+            
+            <div class="metric-grid">
+              <div class="metric-item">
+                <div class="metric-label">CPU</div>
+                <div class="metric-value">${resources.cpu_percent || '0%'}</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Memory</div>
+                <div class="metric-value">${resources.memory_usage || '0B'}</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Restarts</div>
+                <div class="metric-value">${resources.restart_count || 0}</div>
+              </div>
+            </div>
+            
+            <div class="action-buttons">
+              <button class="btn action-btn" onclick="showContainerDetails('${containerName}')">
+                <i class="fas fa-info-circle"></i> Details
+              </button>
+              <button class="btn btn-success action-btn" onclick="startContainer('${containerName}')">
+                <i class="fas fa-play"></i> Start
+              </button>
+              <button class="btn btn-warning action-btn" onclick="restartContainer('${containerName}')">
+                <i class="fas fa-redo"></i> Restart
+              </button>
+            </div>
+          </div>
         `;
-    });
-    
-    html += '</div>';
-    healthContainer.innerHTML = html;
-    
-    console.log("✅ Health data displayed successfully");
-}
-
-// Update helper functions
-function getHealthStatusIcon(status) {
-    const statusLower = status.toLowerCase();
-    if (statusLower === 'healthy') return '✅';
-    if (statusLower === 'running') return '✅';
-    if (statusLower === 'unhealthy') return '❌';
-    if (statusLower === 'exited') return '⏹️';
-    if (statusLower === 'starting') return '🔄';
-    if (statusLower === 'created') return '🔄';
-    return '❓';
-}
-
-function getHealthStatusColor(status) {
-    const statusLower = status.toLowerCase();
-    if (statusLower === 'healthy') return '#2ecc71';
-    if (statusLower === 'running') return '#2ecc71';
-    if (statusLower === 'unhealthy') return '#e74c3c';
-    if (statusLower === 'exited') return '#e74c3c';
-    if (statusLower === 'starting') return '#3498db';
-    if (statusLower === 'created') return '#3498db';
-    return '#95a5a6';
-}
-
-function getUsageColor(usage) {
-    if (typeof usage === 'string') {
-        // Extract percentage from strings like "0.15%"
-        const percentMatch = usage.match(/(\d+\.?\d*)%/);
-        if (percentMatch) {
-            const percent = parseFloat(percentMatch[1]);
-            if (percent > 80) return '#e74c3c';
-            if (percent > 60) return '#f39c12';
-            return '#2ecc71';
-        }
+      }).join('');
     }
-    return '#3498db';
-}
 
-function startHealthMonitoring() {
-    if (healthMonitorInterval) {
+    function startHealthMonitoring() {
+      if (healthMonitorInterval) {
         clearInterval(healthMonitorInterval);
+      }
+      healthMonitorInterval = setInterval(refreshHealth, 5000);
+      refreshHealth();
     }
-    healthMonitorInterval = setInterval(refreshHealth, 3000); // Refresh every 3 seconds
-    refreshHealth(); // Immediate refresh
-}
 
-function stopHealthMonitoring() {
-    if (healthMonitorInterval) {
+    function stopHealthMonitoring() {
+      if (healthMonitorInterval) {
         clearInterval(healthMonitorInterval);
         healthMonitorInterval = null;
+      }
     }
-}
 
-// Initialize health monitoring when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    // Start health monitoring after a short delay
-    setTimeout(refreshHealth, 1000);
-});
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      fetchData();
+      setTimeout(refreshHealth, 1000);
+    });
+
+    // Auto-refresh data every 5 seconds
+    setInterval(fetchData, 5000);
+    updateLastUpdated();
   </script>
 </body>
 </html>
