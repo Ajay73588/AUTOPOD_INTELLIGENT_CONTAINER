@@ -222,4 +222,211 @@ class PodmanManager:
             return True
         except Exception as e:
             print(f"❌ Error starting container {container_name}: {e}")
-            return False    
+            return False
+
+    # ========== HEALTH MONITORING METHODS ==========
+
+    def get_container_stats(self, container_name):
+        """Get real-time container statistics with better parsing."""
+        try:
+            output = self._run_cmd([
+                "podman", "stats", container_name, 
+                "--no-stream", "--format", "json"
+            ])
+            if output:
+                stats_data = json.loads(output)
+                if isinstance(stats_data, list) and stats_data:
+                    stats = stats_data[0]
+                    
+                    # Parse CPU percentage
+                    cpu_percent = stats.get('CPU', '0%')
+                    if cpu_percent == '--':
+                        cpu_percent = '0%'
+                    
+                    # Parse memory usage
+                    mem_usage = stats.get('MemUsage', '0B / 0B')
+                    if ' / ' in mem_usage:
+                        mem_used, mem_limit = mem_usage.split(' / ')
+                    else:
+                        mem_used, mem_limit = '0B', 'N/A'
+                    
+                    # Parse network I/O
+                    net_io = stats.get('NetIO', '0B / 0B')
+                    if net_io == '-- / --':
+                        net_io = '0B / 0B'
+                    
+                    # Parse block I/O
+                    block_io = stats.get('BlockIO', '0B / 0B')
+                    if block_io == '-- / --':
+                        block_io = '0B / 0B'
+                    
+                    # Parse PIDs
+                    pids = stats.get('PIDs', '0')
+                    if pids == '--':
+                        pids = '0'
+                    
+                    return {
+                        'cpu_percent': cpu_percent,
+                        'memory_used': mem_used.strip(),
+                        'memory_limit': mem_limit.strip(),
+                        'network_io': net_io,
+                        'block_io': block_io,
+                        'pids': pids,
+                        'container_name': stats.get('Name', container_name)
+                    }
+            return {
+                'cpu_percent': '0%',
+                'memory_used': '0B',
+                'memory_limit': 'N/A',
+                'network_io': '0B / 0B',
+                'block_io': '0B / 0B',
+                'pids': '0',
+                'container_name': container_name
+            }
+        except Exception as e:
+            print(f"Error getting stats for {container_name}: {e}")
+            return {
+                'cpu_percent': '0%',
+                'memory_used': '0B',
+                'memory_limit': 'N/A',
+                'network_io': '0B / 0B',
+                'block_io': '0B / 0B',
+                'pids': '0',
+                'container_name': container_name
+            }
+
+    def get_container_health(self, container_name):
+        """Check container health status with fallback logic."""
+        try:
+            # Get detailed container info
+            output = self._run_cmd([
+                "podman", "inspect", container_name, "--format", "json"
+            ])
+            if output:
+                container_info = json.loads(output)
+                if isinstance(container_info, list) and container_info:
+                    container_data = container_info[0]
+                    
+                    # Check health status from container inspect
+                    state = container_data.get('State', {})
+                    status = state.get('Status', 'unknown').lower()
+                    
+                    # If container has explicit health check, use it
+                    health = state.get('Health', {})
+                    health_status = health.get('Status', 'unknown')
+                    
+                    # If no explicit health check, infer from status
+                    if health_status == 'unknown' or not health_status:
+                        if status == 'running':
+                            health_status = 'healthy'
+                        elif status == 'exited':
+                            health_status = 'exited'
+                        elif status == 'created':
+                            health_status = 'starting'
+                        else:
+                            health_status = status
+                    
+                    return {
+                        'status': health_status,
+                        'failures': health.get('FailingStreak', 0),
+                        'log': health.get('Log', []),
+                        'inferred': health_status != health.get('Status', 'unknown')
+                    }
+            return {'status': 'unknown', 'failures': 0, 'log': [], 'inferred': True}
+        except Exception as e:
+            print(f"Error checking health for {container_name}: {e}")
+            return {'status': 'unknown', 'failures': 0, 'log': [], 'inferred': True}
+
+    def get_container_resources(self, container_name):
+        """Get container resource usage and limits with better data."""
+        try:
+            # Get real-time stats first
+            stats = self.get_container_stats(container_name)
+            
+            # Get container info for additional data
+            output = self._run_cmd([
+                "podman", "inspect", container_name, "--format", "json"
+            ])
+            
+            restart_count = 0
+            created_date = 'unknown'
+            
+            if output:
+                container_info = json.loads(output)
+                if isinstance(container_info, list) and container_info:
+                    container_data = container_info[0]
+                    
+                    # Get restart count
+                    restart_count = container_data.get('RestartCount', 0)
+                    
+                    # Get proper created date
+                    created = container_data.get('Created', '')
+                    if created:
+                        try:
+                            # Convert ISO timestamp to readable format
+                            created_date = datetime.fromisoformat(created.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')
+                        except:
+                            created_date = created
+                    
+                    # Get resource limits from HostConfig
+                    host_config = container_data.get('HostConfig', {})
+                    memory_limit = host_config.get('Memory', 0)
+                    if memory_limit and memory_limit > 0:
+                        # Convert bytes to human readable
+                        stats['memory_limit'] = self._bytes_to_human(memory_limit)
+            
+            return {
+                'cpu_percent': stats.get('cpu_percent', '0%'),
+                'memory_usage': stats.get('memory_used', '0B'),
+                'memory_limit': stats.get('memory_limit', 'N/A'),
+                'network_io': stats.get('network_io', '0B / 0B'),
+                'block_io': stats.get('block_io', '0B / 0B'),
+                'pids': stats.get('pids', '0'),
+                'restart_count': restart_count,
+                'created_at': created_date,
+                'container_name': container_name
+            }
+        except Exception as e:
+            print(f"Error getting resources for {container_name}: {e}")
+            return {
+                'cpu_percent': '0%',
+                'memory_usage': '0B',
+                'memory_limit': 'N/A',
+                'network_io': '0B / 0B',
+                'block_io': '0B / 0B',
+                'pids': '0',
+                'restart_count': 0,
+                'created_at': 'unknown',
+                'container_name': container_name
+            }
+
+    def _bytes_to_human(self, bytes_size):
+        """Convert bytes to human readable format."""
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if bytes_size < 1024.0:
+                return f"{bytes_size:.1f}{unit}"
+            bytes_size /= 1024.0
+        return f"{bytes_size:.1f}TB"
+
+    def get_all_containers_health(self):
+        """Get health status for all containers."""
+        containers = self.get_containers()
+        health_data = {}
+        
+        for container in containers:
+            container_name = container.get("Names", [""])[0] if container.get("Names") else "unknown"
+            if isinstance(container_name, list):
+                container_name = container_name[0]
+                
+            health_data[container_name] = {
+                'health': self.get_container_health(container_name),
+                'resources': self.get_container_resources(container_name),
+                'basic_info': {
+                    'status': container.get('Status', 'unknown'),
+                    'state': container.get('State', 'unknown'),
+                    'image': container.get('Image', 'unknown'),
+                    'created': container.get('Created', 'unknown')
+                }
+            }
+        
+        return health_data

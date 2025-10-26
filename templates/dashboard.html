@@ -198,21 +198,7 @@
     <div id="sync-status" class="sync-status"></div>
     <div id="last-updated" class="last-updated"></div>
   </div>
-
-  <div class="section">
-    <h2>
-      Container Status 
-      <span id="container-count" class="container-count">0</span>
-    </h2>
-    <div id="status">Loading...</div>
-  </div>
-
-  <div class="section">
-    <h2>Container Logs</h2>
-    <pre id="logs">Loading...</pre>
-  </div>
-
-  <div class="section">
+    <div class="section">
   <h2>Webhook Testing</h2>
   <div class="webhook-section">
     <p>Test AutoPod automation with any GitHub repository:</p>
@@ -259,17 +245,44 @@
     </div>
 
     <div id="webhook-status" class="sync-status" style="margin-top: 10px;"></div>
-    
-    <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px;">
-      <h4>💡 Example GitHub URLs:</h4>
-      <ul style="font-size: 12px; color: #ccc; margin: 5px 0; padding-left: 20px;">
-        <li><code>https://github.com/docker/getting-started.git</code></li>
-        <li><code>https://github.com/nodejs/docker-node.git</code></li>
-        <li><code>https://github.com/nginx/nginx.git</code></li>
-        <li><code>https://github.com/python/cpython.git</code></li>
-      </ul>
-    </div>
   </div>
+
+  <div class="section">
+    <h2>
+      Container Status 
+      <span id="container-count" class="container-count">0</span>
+    </h2>
+    <div id="status">Loading...</div>
+  </div>
+
+  <div class="section">
+    <h2>Container Logs</h2>
+    <pre id="logs">Loading...</pre>
+  </div>
+
+  <!-- Add this after the Container Status section -->
+<div class="section">
+    <h2>
+        Container Health Monitoring 
+        <span id="health-count" class="container-count">0</span>
+    </h2>
+    <div class="actions">
+        <button class="btn" onclick="refreshHealth()" id="refresh-health-btn">
+            📊 Refresh Health Data
+        </button>
+        <button class="btn btn-success" onclick="startHealthMonitoring()">
+            🔄 Start Auto-Refresh
+        </button>
+        <button class="btn btn-warning" onclick="stopHealthMonitoring()">
+            ⏹️ Stop Auto-Refresh
+        </button>
+    </div>
+    <div id="health-monitoring" style="margin-top: 15px;">
+        <div id="health-status">Loading health data...</div>
+    </div>
+</div>
+
+
 </div>
 
   <script>
@@ -741,6 +754,284 @@ document.getElementById('github-url').addEventListener('input', function(e) {
 
     // Initial update time
     updateLastUpdated();
+
+    let healthMonitorInterval = null;
+
+// Health Monitoring Functions
+async function refreshHealth() {
+    const refreshBtn = document.getElementById('refresh-health-btn');
+    const healthContainer = document.getElementById('health-status');
+    
+    refreshBtn.disabled = true;
+    refreshBtn.innerHTML = '⏳ Loading...';
+    
+    try {
+        console.log("🔄 Fetching health data...");
+        const response = await fetch('/api/containers/health');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        console.log("📊 Health API response:", result);
+        
+        if (result.success && result.data) {
+            console.log("✅ Health data received, displaying...");
+            displayHealthData(result.data);
+        } else {
+            console.error("❌ Health API returned error:", result.error);
+            healthContainer.innerHTML = `
+                <div style="background: rgba(231, 76, 60, 0.1); padding: 15px; border-radius: 8px; border: 1px solid #e74c3c;">
+                    <h4 style="color: #e74c3c; margin: 0 0 10px 0;">❌ Error Loading Health Data</h4>
+                    <p style="margin: 0; color: #ccc;">Error: ${result.error || 'Unknown error'}</p>
+                </div>
+            `;
+        }
+    } catch (err) {
+        console.error("❌ Fetch error:", err);
+        healthContainer.innerHTML = `
+            <div style="background: rgba(231, 76, 60, 0.1); padding: 15px; border-radius: 8px; border: 1px solid #e74c3c;">
+                <h4 style="color: #e74c3c; margin: 0 0 10px 0;">❌ Network Error</h4>
+                <p style="margin: 0; color: #ccc;">${err.message}</p>
+                <p style="margin: 10px 0 0 0; font-size: 12px; color: #888;">
+                    Make sure the Flask server is running on port 5000.
+                </p>
+            </div>
+        `;
+    } finally {
+        refreshBtn.disabled = false;
+        refreshBtn.innerHTML = '📊 Refresh Health Data';
+    }
+}
+
+function displayHealthData(healthData) {
+    const healthContainer = document.getElementById('health-status');
+    const healthCount = document.getElementById('health-count');
+    
+    console.log("📊 Raw health data received:", healthData);
+    
+    if (!healthData || Object.keys(healthData).length === 0) {
+        healthContainer.innerHTML = '<p>No containers found for health monitoring.</p>';
+        healthCount.textContent = '0';
+        return;
+    }
+    
+    healthCount.textContent = Object.keys(healthData).length;
+    
+    let html = '<div class="health-grid">';
+    
+    Object.entries(healthData).forEach(([containerName, data]) => {
+        console.log(`🔍 Processing container: ${containerName}`, data);
+        
+        const health = data.health || {};
+        const resources = data.resources || {};
+        const basicInfo = data.basic_info || {};
+        
+        const healthStatus = health.status || 'unknown';
+        const healthColor = getHealthStatusColor(healthStatus);
+        const healthIcon = getHealthStatusIcon(healthStatus);
+        const cpuUsage = resources.cpu_percent || '0%';
+        const memoryUsage = resources.memory_usage || '0B';
+        const memoryLimit = resources.memory_limit || 'N/A';
+        const networkIO = resources.network_io || '0B / 0B';
+        const restartCount = resources.restart_count || 0;
+        const pids = resources.pids || '0';
+        const createdDate = resources.created_at || basicInfo.created || 'unknown';
+        
+        // Format the created date if it's a timestamp
+        let displayDate = createdDate;
+        if (typeof createdDate === 'number' && createdDate > 1000000000) {
+            // It's a Unix timestamp, convert to readable date
+            displayDate = new Date(createdDate * 1000).toLocaleString();
+        }
+        
+        // Determine if we should show inferred warning
+        const isInferred = health.inferred;
+
+        html += `
+            <div class="health-card" style="
+                background: rgba(255,255,255,0.05);
+                border-radius: 10px;
+                padding: 15px;
+                margin-bottom: 15px;
+                border-left: 4px solid ${healthColor};
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            ">
+                <!-- Container Header -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <span style="font-size: 18px;">${healthIcon}</span>
+                            <h4 style="margin: 0; color: #66fcf1; font-size: 16px;">${containerName}</h4>
+                        </div>
+                        <div style="font-size: 11px; color: #888; line-height: 1.3;">
+                            <div>📦 ${basicInfo.image || 'unknown'}</div>
+                            <div>🔄 ${basicInfo.status || 'unknown'}</div>
+                            <div>🕒 ${displayDate}</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                        <div class="health-badge" style="
+                            background: ${healthColor};
+                            color: white;
+                            padding: 4px 8px;
+                            border-radius: 12px;
+                            font-size: 10px;
+                            font-weight: bold;
+                        ">
+                            ${healthStatus.toUpperCase()}
+                        </div>
+                        ${isInferred ? `
+                            <div style="
+                                background: rgba(243, 156, 18, 0.2);
+                                color: #f39c12;
+                                padding: 2px 6px;
+                                border-radius: 8px;
+                                font-size: 8px;
+                                border: 1px solid rgba(243, 156, 18, 0.3);
+                            ">
+                                INFERRED
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <!-- Metrics Grid -->
+                <div style="
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 8px;
+                    margin-bottom: 12px;
+                ">
+                    <div class="metric-item">
+                        <div style="font-size: 11px; color: #ccc; margin-bottom: 2px;">💻 CPU</div>
+                        <div style="font-size: 12px; color: ${getUsageColor(cpuUsage)}; font-weight: bold;">
+                            ${cpuUsage}
+                        </div>
+                    </div>
+                    
+                    <div class="metric-item">
+                        <div style="font-size: 11px; color: #ccc; margin-bottom: 2px;">🧠 MEMORY</div>
+                        <div style="font-size: 12px; color: ${getUsageColor(memoryUsage)}; font-weight: bold;">
+                            ${memoryUsage} / ${memoryLimit}
+                        </div>
+                    </div>
+                    
+                    <div class="metric-item">
+                        <div style="font-size: 11px; color: #ccc; margin-bottom: 2px;">🌐 NETWORK</div>
+                        <div style="font-size: 12px; color: #3498db; font-weight: bold;">
+                            ${networkIO}
+                        </div>
+                    </div>
+                    
+                    <div class="metric-item">
+                        <div style="font-size: 11px; color: #ccc; margin-bottom: 2px;">🔄 RESTARTS</div>
+                        <div style="font-size: 12px; color: ${restartCount > 0 ? '#f39c12' : '#2ecc71'}; font-weight: bold;">
+                            ${restartCount}
+                        </div>
+                    </div>
+                    
+                    <div class="metric-item">
+                        <div style="font-size: 11px; color: #ccc; margin-bottom: 2px;">❌ FAILURES</div>
+                        <div style="font-size: 12px; color: ${health.failures > 0 ? '#e74c3c' : '#2ecc71'}; font-weight: bold;">
+                            ${health.failures || 0}
+                        </div>
+                    </div>
+                    
+                    <div class="metric-item">
+                        <div style="font-size: 11px; color: #ccc; margin-bottom: 2px;">📊 PROCESSES</div>
+                        <div style="font-size: 12px; color: #3498db; font-weight: bold;">
+                            ${pids}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div style="display: flex; gap: 6px; margin-top: 8px;">
+                    <button class="btn" style="font-size: 10px; padding: 4px 8px;" 
+                            onclick="showContainerDetails('${containerName}')">
+                        📋 Details
+                    </button>
+                    <button class="btn btn-success" style="font-size: 10px; padding: 4px 8px;" 
+                            onclick="startContainer('${containerName}')"
+                            ${basicInfo.status && basicInfo.status.toLowerCase().includes('running') ? 'disabled' : ''}>
+                        ▶️ Start
+                    </button>
+                    <button class="btn btn-warning" style="font-size: 10px; padding: 4px 8px;" 
+                            onclick="restartContainer('${containerName}')"
+                            ${!(basicInfo.status && basicInfo.status.toLowerCase().includes('running')) ? 'disabled' : ''}>
+                        🔄 Restart
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    healthContainer.innerHTML = html;
+    
+    console.log("✅ Health data displayed successfully");
+}
+
+// Update helper functions
+function getHealthStatusIcon(status) {
+    const statusLower = status.toLowerCase();
+    if (statusLower === 'healthy') return '✅';
+    if (statusLower === 'running') return '✅';
+    if (statusLower === 'unhealthy') return '❌';
+    if (statusLower === 'exited') return '⏹️';
+    if (statusLower === 'starting') return '🔄';
+    if (statusLower === 'created') return '🔄';
+    return '❓';
+}
+
+function getHealthStatusColor(status) {
+    const statusLower = status.toLowerCase();
+    if (statusLower === 'healthy') return '#2ecc71';
+    if (statusLower === 'running') return '#2ecc71';
+    if (statusLower === 'unhealthy') return '#e74c3c';
+    if (statusLower === 'exited') return '#e74c3c';
+    if (statusLower === 'starting') return '#3498db';
+    if (statusLower === 'created') return '#3498db';
+    return '#95a5a6';
+}
+
+function getUsageColor(usage) {
+    if (typeof usage === 'string') {
+        // Extract percentage from strings like "0.15%"
+        const percentMatch = usage.match(/(\d+\.?\d*)%/);
+        if (percentMatch) {
+            const percent = parseFloat(percentMatch[1]);
+            if (percent > 80) return '#e74c3c';
+            if (percent > 60) return '#f39c12';
+            return '#2ecc71';
+        }
+    }
+    return '#3498db';
+}
+
+function startHealthMonitoring() {
+    if (healthMonitorInterval) {
+        clearInterval(healthMonitorInterval);
+    }
+    healthMonitorInterval = setInterval(refreshHealth, 3000); // Refresh every 3 seconds
+    refreshHealth(); // Immediate refresh
+}
+
+function stopHealthMonitoring() {
+    if (healthMonitorInterval) {
+        clearInterval(healthMonitorInterval);
+        healthMonitorInterval = null;
+    }
+}
+
+// Initialize health monitoring when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Start health monitoring after a short delay
+    setTimeout(refreshHealth, 1000);
+});
   </script>
 </body>
 </html>

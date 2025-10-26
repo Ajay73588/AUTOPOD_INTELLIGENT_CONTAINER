@@ -252,6 +252,50 @@ def api_remove_container():
         logger.exception("Error removing container")
         return jsonify({"success": False, "error": str(e)}), 500
 
+# Health Monitoring Endpoints
+@app.route('/api/containers/<container_name>/health', methods=['GET'])
+def api_container_health(container_name):
+    """Get detailed health information for a container."""
+    try:
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        health_data = {
+            'health': podman.get_container_health(container_name),
+            'resources': podman.get_container_resources(container_name)
+        }
+        
+        return jsonify({"success": True, "data": health_data})
+    except Exception as e:
+        logger.exception(f"Error getting health for {container_name}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/containers/health', methods=['GET'])
+def api_all_containers_health():
+    """Get health status for all containers."""
+    try:
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        health_data = podman.get_all_containers_health()
+        return jsonify({"success": True, "data": health_data})
+    except Exception as e:
+        logger.exception("Error getting all containers health")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/containers/<container_name>/stats', methods=['GET'])
+def api_container_stats(container_name):
+    """Get real-time statistics for a container."""
+    try:
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        stats_data = podman.get_container_stats(container_name)
+        return jsonify({"success": True, "data": stats_data})
+    except Exception as e:
+        logger.exception(f"Error getting stats for {container_name}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 if __name__ == '__main__':
     # Perform initial sync when starting the application
     if podman:
