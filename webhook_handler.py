@@ -88,7 +88,7 @@ def handle_webhook(podman_manager):
         podman_manager.remove_container(container_name)  # This will fail silently if container doesn't exist
 
         # Step 3: Run new container with Podman
-        logger.info(f"▶️ Running new container: {container_name}")
+        logger.info(f"▶ Running new container: {container_name}")
         
         # Find an available port
         port = find_available_port(8081)
@@ -155,7 +155,7 @@ def extract_repo_name_from_url(repo_url):
                 return repo_name
                 
     except Exception as e:
-        logger.warning(f"⚠️ Could not extract repo name from URL: {e}")
+        logger.warning(f"⚠ Could not extract repo name from URL: {e}")
     
     return "webhook-app"
 
@@ -313,5 +313,5 @@ def find_available_port(start_port=8081):
             port += 1
     
     # If no port found, return the original (might fail, but we try)
-    logger.warning(f"⚠️  No available ports found, using {start_port}")
+    logger.warning(f"⚠  No available ports found, using {start_port}")
     return start_port

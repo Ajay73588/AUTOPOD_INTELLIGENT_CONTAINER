@@ -35,18 +35,29 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 0;
+      padding: 12px;
       border-bottom: 1px solid #2c3e50;
+      margin-bottom: 8px;
+    }
+    .status-info {
+      flex-grow: 1;
     }
     .status-name {
       font-weight: bold;
       color: #66fcf1;
+      font-size: 16px;
+    }
+    .status-details {
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
     }
     .status-badge {
-      padding: 4px 12px;
+      padding: 6px 12px;
       border-radius: 20px;
       font-size: 12px;
       font-weight: bold;
+      margin-left: 10px;
     }
     .status-running {
       background-color: #2ecc71;
@@ -72,12 +83,13 @@
       background: #66fcf1;
       color: #0b0c10;
       border: none;
-      padding: 10px 20px;
+      padding: 10px 16px;
       border-radius: 6px;
       cursor: pointer;
       font-weight: bold;
-      margin: 5px;
+      margin: 4px;
       transition: all 0.3s ease;
+      font-size: 14px;
     }
     .btn:hover {
       background: #45a29e;
@@ -88,10 +100,28 @@
       cursor: not-allowed;
       transform: none;
     }
+    .btn-danger {
+      background: #e74c3c;
+      color: white;
+    }
+    .btn-warning {
+      background: #f39c12;
+      color: white;
+    }
+    .btn-success {
+      background: #2ecc71;
+      color: white;
+    }
     .actions {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+    .container-actions {
+      display: flex;
+      gap: 5px;
+      margin-top: 8px;
     }
     .sync-status {
       margin-top: 10px;
@@ -128,70 +158,26 @@
       font-size: 12px;
       margin-left: 10px;
     }
-    .repo-input {
-      display: flex;
-      gap: 10px;
-      margin: 15px 0;
-    }
-    .repo-input input {
-      flex: 1;
-      padding: 12px;
-      border: 2px solid #45a29e;
-      border-radius: 6px;
-      background: #0b0c10;
-      color: #c5c6c7;
-      font-size: 14px;
-    }
-    .repo-input input:focus {
-      outline: none;
-      border-color: #66fcf1;
-      box-shadow: 0 0 10px rgba(102, 252, 241, 0.3);
-    }
-    .repo-input button {
-      background: #45a29e;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: all 0.3s ease;
-    }
-    .repo-input button:hover {
-      background: #66fcf1;
-      transform: translateY(-2px);
-    }
-    .repo-input button:disabled {
-      background: #4a5f68;
-      cursor: not-allowed;
-      transform: none;
-    }
-    .deployment-status {
+    .webhook-section {
+      background: rgba(102, 252, 241, 0.1);
+      padding: 15px;
+      border-radius: 8px;
       margin-top: 15px;
-      padding: 12px;
-      border-radius: 6px;
     }
-    .access-link {
-      color: #66fcf1;
-      text-decoration: none;
-      margin-left: 10px;
-    }
-    .access-link:hover {
-      text-decoration: underline;
+    .webhook-input {
+      width: 100%;
+      background: #0b0c10;
+      border: 1px solid #45a29e;
+      border-radius: 4px;
+      padding: 8px;
+      color: white;
+      margin: 8px 0;
+      font-family: monospace;
     }
   </style>
 </head>
 <body>
   <h1>🚀 AutoPod Intelligent Container Dashboard</h1>
-
-  <div class="section">
-    <h2>Deploy New Repository</h2>
-    <div class="repo-input">
-      <input type="text" id="repo-url" placeholder="https://github.com/username/repository.git" />
-      <button onclick="deployRepository()" id="deploy-btn">🚀 Deploy Repository</button>
-    </div>
-    <div id="deployment-status" class="deployment-status"></div>
-  </div>
 
   <div class="section">
     <h2>Actions</h2>
@@ -204,6 +190,9 @@
       </button>
       <button class="btn" onclick="clearLogs()" id="clear-logs-btn">
         🧹 Clear Logs Display
+      </button>
+      <button class="btn btn-success" onclick="testWebhook()" id="test-webhook-btn">
+        🚀 Test Webhook
       </button>
     </div>
     <div id="sync-status" class="sync-status"></div>
@@ -223,12 +212,72 @@
     <pre id="logs">Loading...</pre>
   </div>
 
+  <div class="section">
+  <h2>Webhook Testing</h2>
+  <div class="webhook-section">
+    <p>Test AutoPod automation with any GitHub repository:</p>
+    
+    <div style="margin-bottom: 15px;">
+      <label for="github-url" style="display: block; margin-bottom: 8px; font-weight: bold;">
+        📋 GitHub Repository URL:
+      </label>
+      <input 
+        type="text" 
+        id="github-url" 
+        class="webhook-input" 
+        placeholder="https://github.com/username/repository.git"
+        
+      >
+      <div style="font-size: 12px; color: #888; margin-top: 5px;">
+        Enter any public GitHub repository URL with a Dockerfile
+      </div>
+    </div>
+
+    <div style="margin-bottom: 15px;">
+      <label for="app-name" style="display: block; margin-bottom: 8px; font-weight: bold;">
+        🏷️ Application Name:
+      </label>
+      <input 
+        type="text" 
+        id="app-name" 
+        class="webhook-input" 
+        placeholder="my-app"
+        
+      >
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-success" onclick="triggerCustomWebhook()">
+        🚀 Deploy from GitHub
+      </button>
+      <button class="btn" onclick="triggerSampleWebhook()">
+        🧪 Test with Sample
+      </button>
+      <button class="btn btn-warning" onclick="testWebhook()">
+        🔍 Quick Test
+      </button>
+    </div>
+
+    <div id="webhook-status" class="sync-status" style="margin-top: 10px;"></div>
+    
+    <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px;">
+      <h4>💡 Example GitHub URLs:</h4>
+      <ul style="font-size: 12px; color: #ccc; margin: 5px 0; padding-left: 20px;">
+        <li><code>https://github.com/docker/getting-started.git</code></li>
+        <li><code>https://github.com/nodejs/docker-node.git</code></li>
+        <li><code>https://github.com/nginx/nginx.git</code></li>
+        <li><code>https://github.com/python/cpython.git</code></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
   <script>
     let lastUpdateTime = null;
 
     function getStatusBadge(status) {
       const statusLower = status.toLowerCase();
-      if (statusLower.includes('up') || statusLower.includes('running')) {
+      if (statusLower.includes('running') || statusLower.includes('up')) {
         return 'status-running';
       } else if (statusLower.includes('exited') || statusLower.includes('stopped')) {
         return 'status-exited';
@@ -243,7 +292,7 @@
 
     function getStatusText(status) {
       const statusLower = status.toLowerCase();
-      if (statusLower.includes('up') || statusLower.includes('running')) {
+      if (statusLower.includes('running') || statusLower.includes('up')) {
         return 'Running';
       } else if (statusLower.includes('exited') || statusLower.includes('stopped')) {
         return 'Exited';
@@ -262,90 +311,128 @@
       lastUpdatedDiv.textContent = `Last updated: ${lastUpdateTime.toLocaleTimeString()}`;
     }
 
-    async function deployRepository() {
-      const repoUrl = document.getElementById('repo-url').value.trim();
-      const deployBtn = document.getElementById('deploy-btn');
-      const statusDiv = document.getElementById('deployment-status');
-
-      if (!repoUrl) {
-        statusDiv.className = 'deployment-status status-error';
-        statusDiv.innerHTML = '❌ Please enter a repository URL';
-        return;
-      }
-
-      // Basic GitHub URL validation
-      if (!repoUrl.includes('github.com') || !repoUrl.endsWith('.git')) {
-        statusDiv.className = 'deployment-status status-error';
-        statusDiv.innerHTML = '❌ Please enter a valid GitHub repository URL (should end with .git)';
-        return;
-      }
-
-      deployBtn.disabled = true;
-      deployBtn.innerHTML = '⏳ Deploying...';
-      statusDiv.className = 'deployment-status status-info';
-      statusDiv.innerHTML = '🚀 Starting deployment...';
-
+    // Container Management Functions
+    async function startContainer(containerName) {
+      const statusDiv = document.getElementById('sync-status');
+      statusDiv.className = 'sync-status status-info';
+      statusDiv.innerHTML = `Starting container: ${containerName}...`;
+      
       try {
-        // Extract repository name from URL
-        const repoName = extractRepoName(repoUrl);
-        
-        const response = await fetch('/webhook', {
+        const response = await fetch('/api/containers/start', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            repository: {
-              clone_url: repoUrl,
-              name: repoName
-            }
-          })
+          body: JSON.stringify({ container_name: containerName })
         });
-
+        
         const result = await response.json();
-
-        if (result.status === 'success') {
-          statusDiv.className = 'deployment-status status-success';
-          statusDiv.innerHTML = `
-            ✅ ${result.message}
-            ${result.access_url ? `<br><a href="${result.access_url}" target="_blank" class="access-link">🌐 Open Application</a>` : ''}
-          `;
-          
-          // Clear input field
-          document.getElementById('repo-url').value = '';
-          
-          // Refresh data after deployment
+        if (result.success) {
+          statusDiv.className = 'sync-status status-success';
+          statusDiv.innerHTML = `✅ Container ${containerName} started successfully`;
           setTimeout(fetchData, 2000);
         } else {
-          statusDiv.className = 'deployment-status status-error';
-          statusDiv.innerHTML = `❌ ${result.message}`;
+          statusDiv.className = 'sync-status status-error';
+          statusDiv.innerHTML = `❌ Failed to start ${containerName}: ${result.error}`;
         }
       } catch (err) {
-        statusDiv.className = 'deployment-status status-error';
-        statusDiv.innerHTML = `❌ Deployment failed: ${err.message}`;
-      } finally {
-        deployBtn.disabled = false;
-        deployBtn.innerHTML = '🚀 Deploy Repository';
+        statusDiv.className = 'sync-status status-error';
+        statusDiv.innerHTML = `❌ Error starting container: ${err.message}`;
+      }
+    }
+
+    async function stopContainer(containerName) {
+      const statusDiv = document.getElementById('sync-status');
+      statusDiv.className = 'sync-status status-info';
+      statusDiv.innerHTML = `Stopping container: ${containerName}...`;
+      
+      try {
+        const response = await fetch('/api/containers/stop', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ container_name: containerName })
+        });
         
-        // Clear status after 10 seconds
-        setTimeout(() => {
-          statusDiv.innerHTML = '';
-          statusDiv.className = 'deployment-status';
-        }, 10000);
+        const result = await response.json();
+        if (result.success) {
+          statusDiv.className = 'sync-status status-success';
+          statusDiv.innerHTML = `✅ Container ${containerName} stopped successfully`;
+          setTimeout(fetchData, 2000);
+        } else {
+          statusDiv.className = 'sync-status status-error';
+          statusDiv.innerHTML = `❌ Failed to stop ${containerName}: ${result.error}`;
+        }
+      } catch (err) {
+        statusDiv.className = 'sync-status status-error';
+        statusDiv.innerHTML = `❌ Error stopping container: ${err.message}`;
       }
     }
 
-    function extractRepoName(repoUrl) {
-      // Extract repository name from GitHub URL
-      // Example: https://github.com/username/repo.git -> repo
-      const matches = repoUrl.match(/github\.com\/([^\/]+\/[^\/\.]+)/);
-      if (matches && matches[1]) {
-        return matches[1].split('/')[1]; // Get only the repo name
+    async function restartContainer(containerName) {
+      const statusDiv = document.getElementById('sync-status');
+      statusDiv.className = 'sync-status status-info';
+      statusDiv.innerHTML = `Restarting container: ${containerName}...`;
+      
+      try {
+        const response = await fetch('/api/containers/restart', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ container_name: containerName })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          statusDiv.className = 'sync-status status-success';
+          statusDiv.innerHTML = `✅ Container ${containerName} restarted successfully`;
+          setTimeout(fetchData, 2000);
+        } else {
+          statusDiv.className = 'sync-status status-error';
+          statusDiv.innerHTML = `❌ Failed to restart ${containerName}: ${result.error}`;
+        }
+      } catch (err) {
+        statusDiv.className = 'sync-status status-error';
+        statusDiv.innerHTML = `❌ Error restarting container: ${err.message}`;
       }
-      // Fallback: use last part of URL
-      return repoUrl.split('/').pop().replace('.git', '') || 'webhook-app';
     }
 
+    async function removeContainer(containerName) {
+      if (!confirm(`Are you sure you want to remove container ${containerName}?`)) {
+        return;
+      }
+      
+      const statusDiv = document.getElementById('sync-status');
+      statusDiv.className = 'sync-status status-info';
+      statusDiv.innerHTML = `Removing container: ${containerName}...`;
+      
+      try {
+        const response = await fetch('/api/containers/remove', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ container_name: containerName })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          statusDiv.className = 'sync-status status-success';
+          statusDiv.innerHTML = `✅ Container ${containerName} removed successfully`;
+          setTimeout(fetchData, 2000);
+        } else {
+          statusDiv.className = 'sync-status status-error';
+          statusDiv.innerHTML = `❌ Failed to remove ${containerName}: ${result.error}`;
+        }
+      } catch (err) {
+        statusDiv.className = 'sync-status status-error';
+        statusDiv.innerHTML = `❌ Error removing container: ${err.message}`;
+      }
+    }
+
+    // Sync and Refresh Functions
     async function syncContainers() {
       const syncBtn = document.getElementById('sync-btn');
       const statusDiv = document.getElementById('sync-status');
@@ -367,12 +454,7 @@
         if (result.success) {
           statusDiv.className = 'sync-status status-success';
           statusDiv.innerHTML = '✅ Sync successful! Refreshing data...';
-          
-          // Refresh data after successful sync
-          setTimeout(() => {
-            fetchData();
-            statusDiv.innerHTML = '✅ Sync completed successfully';
-          }, 1000);
+          setTimeout(fetchData, 1000);
         } else {
           statusDiv.className = 'sync-status status-error';
           statusDiv.innerHTML = `❌ Sync failed: ${result.error}`;
@@ -384,7 +466,6 @@
         syncBtn.disabled = false;
         syncBtn.innerHTML = '🔄 Sync Containers';
         
-        // Clear status message after 5 seconds
         setTimeout(() => {
           statusDiv.innerHTML = '';
           statusDiv.className = 'sync-status';
@@ -410,6 +491,169 @@
       logsPre.textContent = 'Logs cleared. New logs will appear here...';
     }
 
+    // Webhook Functions
+    // Webhook Functions
+async function triggerCustomWebhook() {
+  const githubUrl = document.getElementById('github-url').value;
+  const appName = document.getElementById('app-name').value || 'auto-deployed-app';
+  const statusDiv = document.getElementById('webhook-status');
+  
+  if (!githubUrl) {
+    statusDiv.className = 'sync-status status-error';
+    statusDiv.innerHTML = '❌ Please enter a GitHub repository URL';
+    return;
+  }
+
+  statusDiv.className = 'sync-status status-info';
+  statusDiv.innerHTML = `🚀 Deploying from GitHub: ${githubUrl}`;
+  
+  try {
+    const response = await fetch('/webhook', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        repository: {
+          clone_url: githubUrl,
+          name: appName
+        },
+        after: "auto-deploy-" + Date.now()
+      })
+    });
+    
+    const result = await response.json();
+    if (result.status === 'success') {
+      statusDiv.className = 'sync-status status-success';
+      statusDiv.innerHTML = '✅ Deployment started! Container will appear shortly.';
+      setTimeout(fetchData, 3000);
+    } else {
+      statusDiv.className = 'sync-status status-error';
+      statusDiv.innerHTML = `❌ Deployment failed: ${result.message}`;
+    }
+  } catch (err) {
+    statusDiv.className = 'sync-status status-error';
+    statusDiv.innerHTML = `❌ Deployment error: ${err.message}`;
+  }
+}
+
+async function triggerSampleWebhook() {
+  const statusDiv = document.getElementById('webhook-status');
+  statusDiv.className = 'sync-status status-info';
+  statusDiv.innerHTML = '🚀 Triggering sample webhook deployment...';
+  
+  try {
+    const response = await fetch('/webhook', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        repository: {
+          clone_url: "https://github.com/nginx/nginx.git",
+          name: "sample-auto-app"
+        },
+        after: "sample-deploy-" + Date.now()
+      })
+    });
+    
+    const result = await response.json();
+    if (result.status === 'success') {
+      statusDiv.className = 'sync-status status-success';
+      statusDiv.innerHTML = '✅ Sample deployment started! Check for new containers.';
+      setTimeout(fetchData, 3000);
+    } else {
+      statusDiv.className = 'sync-status status-error';
+      statusDiv.innerHTML = `❌ Sample deployment failed: ${result.message}`;
+    }
+  } catch (err) {
+    statusDiv.className = 'sync-status status-error';
+    statusDiv.innerHTML = `❌ Sample deployment error: ${err.message}`;
+  }
+}
+
+// DELETE THIS DUPLICATE FUNCTION - KEEP THE ONE ABOVE
+async function testWebhook() {
+  const statusDiv = document.getElementById('sync-status');
+  statusDiv.className = 'sync-status status-info';
+  statusDiv.innerHTML = 'Testing webhook functionality...';
+  
+  try {
+    const response = await fetch('/webhook', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        test: "simple webhook test"
+      })
+    });
+    
+    const result = await response.json();
+    if (result.status === 'success') {
+      statusDiv.className = 'sync-status status-success';
+      statusDiv.innerHTML = '✅ Webhook test successful! Check for new containers.';
+      setTimeout(fetchData, 3000);
+    } else {
+      statusDiv.className = 'sync-status status-error';
+      statusDiv.innerHTML = `❌ Webhook test failed: ${result.message}`;
+    }
+  } catch (err) {
+    statusDiv.className = 'sync-status status-error';
+    statusDiv.innerHTML = `❌ Webhook test error: ${err.message}`;
+  }
+}
+// Helper function to extract repo name from URL
+function getRepoNameFromUrl(url) {
+  try {
+    const match = url.match(/github\.com\/([^\/]+\/[^\/]+?)(?:\.git)?$/);
+    return match ? match[1].replace('/', '-') : 'github-app';
+  } catch {
+    return 'github-app';
+  }
+}
+
+// Auto-fill app name when GitHub URL changes
+document.getElementById('github-url').addEventListener('input', function(e) {
+  const url = e.target.value;
+  const appNameInput = document.getElementById('app-name');
+  if (url && !appNameInput.value) {
+    appNameInput.value = getRepoNameFromUrl(url);
+  }
+});
+
+    async function testWebhook() {
+      const statusDiv = document.getElementById('sync-status');
+      statusDiv.className = 'sync-status status-info';
+      statusDiv.innerHTML = 'Testing webhook functionality...';
+      
+      try {
+        const response = await fetch('/webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            test: "simple webhook test"
+          })
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+          statusDiv.className = 'sync-status status-success';
+          statusDiv.innerHTML = '✅ Webhook test successful! Check for new containers.';
+          setTimeout(fetchData, 3000);
+        } else {
+          statusDiv.className = 'sync-status status-error';
+          statusDiv.innerHTML = `❌ Webhook test failed: ${result.message}`;
+        }
+      } catch (err) {
+        statusDiv.className = 'sync-status status-error';
+        statusDiv.innerHTML = `❌ Webhook test error: ${err.message}`;
+      }
+    }
+
+    // Main Data Fetching Function
     async function fetchData() {
       try {
         const [statusRes, logsRes] = await Promise.all([
@@ -428,11 +672,33 @@
           containerCount.textContent = statusData.data.length;
           statusDiv.innerHTML = `
             <div>
-              ${statusData.data.map(s => `
+              ${statusData.data.map(container => `
                 <div class="status-item">
-                  <span class="status-name">${s['container_name']}</span>
-                  <span class="status-badge ${getStatusBadge(s['status'])}">
-                    ${getStatusText(s['status'])}
+                  <div class="status-info">
+                    <div class="status-name">${container['container_name']}</div>
+                    <div class="status-details">
+                      Status: ${container['status']} | Created: ${new Date(container['created_at']).toLocaleString()}
+                    </div>
+                    <div class="container-actions">
+                      <button class="btn btn-success" onclick="startContainer('${container['container_name']}')" 
+                              ${container['status'].toLowerCase().includes('running') ? 'disabled' : ''}>
+                        ▶️ Start
+                      </button>
+                      <button class="btn btn-warning" onclick="stopContainer('${container['container_name']}')"
+                              ${!container['status'].toLowerCase().includes('running') ? 'disabled' : ''}>
+                        ⏹️ Stop
+                      </button>
+                      <button class="btn" onclick="restartContainer('${container['container_name']}')"
+                              ${!container['status'].toLowerCase().includes('running') ? 'disabled' : ''}>
+                        🔄 Restart
+                      </button>
+                      <button class="btn btn-danger" onclick="removeContainer('${container['container_name']}')">
+                        🗑️ Remove
+                      </button>
+                    </div>
+                  </div>
+                  <span class="status-badge ${getStatusBadge(container['status'])}">
+                    ${getStatusText(container['status'])}
                   </span>
                 </div>
               `).join('')}
@@ -440,19 +706,18 @@
           `;
         } else {
           containerCount.textContent = '0';
-          statusDiv.innerHTML = '<p>No containers found. Click "Sync Containers" to refresh.</p>';
+          statusDiv.innerHTML = '<p>No containers found. Click "Sync Containers" to refresh or "Test Webhook" to deploy a sample container.</p>';
         }
 
         // Logs Section
         const logsPre = document.getElementById('logs');
         if (logsData.success && logsData.data.length > 0) {
-          logsPre.textContent = logsData.data.map(l => 
-            `[${l['timestamp']}] ${l['container_name'] || 'unknown'}: ${l['log']}`
+          logsPre.textContent = logsData.data.map(log => 
+            `[${log['timestamp']}] ${log['container_name'] || 'unknown'}: ${log['log']}`
           ).join('\n');
-          // Auto-scroll to bottom of logs
           logsPre.scrollTop = logsPre.scrollHeight;
         } else {
-          logsPre.textContent = 'No logs available. Containers might not be running or no sync has been performed.';
+          logsPre.textContent = 'No logs available. Start containers or trigger a webhook to see logs.';
         }
 
         updateLastUpdated();
@@ -469,13 +734,6 @@
         statusDiv.innerHTML = '❌ Connection error. Make sure the backend server is running on port 5000.';
       }
     }
-
-    // Add Enter key support for repository input
-    document.getElementById('repo-url').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        deployRepository();
-      }
-    });
 
     // Fetch data every 5 seconds
     fetchData();

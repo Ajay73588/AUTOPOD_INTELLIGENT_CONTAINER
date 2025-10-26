@@ -155,6 +155,103 @@ def health_check():
         "database_initialized": True
     })
 
+# Container Management Endpoints
+@app.route('/api/containers/start', methods=['POST'])
+def api_start_container():
+    """API endpoint to start a container."""
+    try:
+        data = request.get_json()
+        container_name = data.get('container_name')
+        
+        if not container_name:
+            return jsonify({"success": False, "error": "Container name is required"}), 400
+        
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        success = podman.start_container(container_name)
+        if success:
+            podman.sync_with_db()  # Update the database
+            return jsonify({"success": True, "message": f"Container {container_name} started"})
+        else:
+            return jsonify({"success": False, "error": f"Failed to start container {container_name}"}), 500
+            
+    except Exception as e:
+        logger.exception("Error starting container")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/containers/stop', methods=['POST'])
+def api_stop_container():
+    """API endpoint to stop a container."""
+    try:
+        data = request.get_json()
+        container_name = data.get('container_name')
+        
+        if not container_name:
+            return jsonify({"success": False, "error": "Container name is required"}), 400
+        
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        success = podman.stop_container(container_name)
+        if success:
+            podman.sync_with_db()  # Update the database
+            return jsonify({"success": True, "message": f"Container {container_name} stopped"})
+        else:
+            return jsonify({"success": False, "error": f"Failed to stop container {container_name}"}), 500
+            
+    except Exception as e:
+        logger.exception("Error stopping container")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/containers/restart', methods=['POST'])
+def api_restart_container():
+    """API endpoint to restart a container."""
+    try:
+        data = request.get_json()
+        container_name = data.get('container_name')
+        
+        if not container_name:
+            return jsonify({"success": False, "error": "Container name is required"}), 400
+        
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        success = podman.restart_container(container_name)
+        if success:
+            podman.sync_with_db()  # Update the database
+            return jsonify({"success": True, "message": f"Container {container_name} restarted"})
+        else:
+            return jsonify({"success": False, "error": f"Failed to restart container {container_name}"}), 500
+            
+    except Exception as e:
+        logger.exception("Error restarting container")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/containers/remove', methods=['POST'])
+def api_remove_container():
+    """API endpoint to remove a container."""
+    try:
+        data = request.get_json()
+        container_name = data.get('container_name')
+        
+        if not container_name:
+            return jsonify({"success": False, "error": "Container name is required"}), 400
+        
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        success = podman.remove_container(container_name)
+        if success:
+            podman.sync_with_db()  # Update the database
+            return jsonify({"success": True, "message": f"Container {container_name} removed"})
+        else:
+            return jsonify({"success": False, "error": f"Failed to remove container {container_name}"}), 500
+            
+    except Exception as e:
+        logger.exception("Error removing container")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 if __name__ == '__main__':
     # Perform initial sync when starting the application
     if podman:
@@ -165,5 +262,21 @@ if __name__ == '__main__':
         except Exception as e:
             logger.error(f"Initial sync failed: {e}")
     
-    # Use debug=True for development only
+    # ADD THESE EXPLICIT PRINT STATEMENTS
+    print("\n" + "="*60)
+    print("🚀 AUTOPOD Flask Application Starting!")
+    print("="*60)
+    print("📡 Server URLs:")
+    print(f"   • http://127.0.0.1:5000")
+    print(f"   • http://localhost:5000") 
+    print(f"   • http://10.3.33.220:5000")
+    print("🔧 Debug mode: ON")
+    print("⏳ Starting server...")
+    print("="*60 + "\n")
+    
+    # Force flush output
+    import sys
+    sys.stdout.flush()
+    sys.stderr.flush()
+    
     app.run(host='0.0.0.0', port=5000, debug=True)
