@@ -295,6 +295,400 @@ def api_container_stats(container_name):
     except Exception as e:
         logger.exception(f"Error getting stats for {container_name}")
         return jsonify({"success": False, "error": str(e)}), 500
+    
+@app.route('/api/containers/<container_name>/weburl', methods=['GET'])
+def api_container_weburl(container_name):
+    """Get the web URL for a container."""
+    try:
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        web_url = podman.get_container_web_url(container_name)
+        container_status = podman.get_container_status_for_ui(container_name)
+        
+        return jsonify({
+            "success": True, 
+            "data": {
+                "web_url": web_url,
+                "has_web_interface": container_status['has_web_interface'],
+                "ports": container_status['ports'],
+                "status": container_status['status']
+            }
+        })
+    except Exception as e:
+        logger.exception(f"Error getting web URL for {container_name}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/containers/<container_name>/open', methods=['POST'])
+def api_open_container_web(container_name):
+    """Open container's web interface."""
+    try:
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        web_url = podman.get_container_web_url(container_name)
+        
+        if not web_url:
+            return jsonify({
+                "success": False, 
+                "error": "No web interface found or container not running"
+            }), 404
+        
+        # Return the URL for the frontend to open
+        return jsonify({
+            "success": True, 
+            "data": {
+                "web_url": web_url,
+                "message": f"Web interface available at: {web_url}"
+            }
+        })
+    except Exception as e:
+        logger.exception(f"Error opening web interface for {container_name}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/containers/<container_name>/network', methods=['GET'])
+def api_container_network(container_name):
+    """Get detailed network information for a container."""
+    try:
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        network_data = podman.get_container_network_info(container_name)
+        return jsonify({"success": True, "data": network_data})
+    except Exception as e:
+        logger.exception(f"Error getting network info for {container_name}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/containers/network/all', methods=['GET'])
+def api_all_containers_network():
+    """Get network information for all containers."""
+    try:
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        containers = podman.get_containers()
+        network_data = {}
+        
+        for container in containers:
+            container_name = container.get('Names', ['unknown'])[0]
+            try:
+                network_data[container_name] = podman.get_container_network_info(container_name)
+            except Exception as e:
+                logger.warning(f"Could not get network info for {container_name}: {e}")
+                network_data[container_name] = {
+                    'ports': [],
+                    'networks': [],
+                    'ip_address': 'N/A',
+                    'gateway': 'N/A',
+                    'error': str(e)
+                }
+        
+        logger.info(f"Fetched network info for {len(network_data)} containers")
+        return jsonify({"success": True, "data": network_data})
+    except Exception as e:
+        logger.exception("Error getting all containers network info")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/network/stats', methods=['GET'])
+def api_network_stats():
+    """Get network statistics and summary."""
+    try:
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        containers = podman.get_containers()
+        total_containers = len(containers)
+        containers_with_ports = 0
+        total_ports = 0
+        networks_list = set()
+        
+        for container in containers:
+            container_name = container.get('Names', ['unknown'])[0]
+            try:
+                network_info = podman.get_container_network_info(container_name)
+                if network_info.get('ports'):
+                    containers_with_ports += 1
+                    total_ports += len(network_info['ports'])
+                if network_info.get('networks'):
+                    networks_list.update(network_info['networks'])
+            except:
+                pass
+        
+        stats = {
+            'total_containers': total_containers,
+            'containers_with_ports': containers_with_ports,
+            'total_ports_exposed': total_ports,
+            'unique_networks': len(networks_list),
+            'networks': list(networks_list)
+        }
+        
+        logger.info("Fetched network statistics")
+        return jsonify({"success": True, "data": stats})
+    except Exception as e:
+        logger.exception("Error getting network stats")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/logs/advanced', methods=['GET'])
+def api_logs_advanced():
+    """Advanced logging endpoint with filtering, searching, and pagination."""
+    try:
+        # Get query parameters
+        container_name = request.args.get('container', None)
+        search_query = request.args.get('search', None)
+        log_type = request.args.get('type', None)  # 'info', 'error', 'warning'
+        limit = int(request.args.get('limit', 100))
+        offset = int(request.args.get('offset', 0))
+        
+        logs = get_container_logs()
+        
+        # Filter by container name
+        if container_name:
+            logs = [log for log in logs if log.get('container_name') == container_name]
+        
+        # Filter by log type
+        if log_type:
+            logs = [log for log in logs if log_type.lower() in log.get('log', '').lower()]
+        
+        # Search in logs
+        if search_query:
+            logs = [log for log in logs if search_query.lower() in log.get('log', '').lower()]
+        
+        # Pagination
+        total = len(logs)
+        logs = logs[offset:offset + limit]
+        
+        logger.info(f"Advanced logs fetched: {len(logs)} entries from {total} total")
+        return jsonify({
+            "success": True,
+            "data": logs,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        })
+    except Exception as e:
+        logger.exception("Error fetching advanced logs")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/logs/export', methods=['GET'])
+def api_logs_export():
+    """Export logs in JSON or CSV format."""
+    try:
+        format_type = request.args.get('format', 'json')  # 'json' or 'csv'
+        container_name = request.args.get('container', None)
+        
+        logs = get_container_logs()
+        
+        if container_name:
+            logs = [log for log in logs if log.get('container_name') == container_name]
+        
+        if format_type == 'csv':
+            import csv
+            import io
+            
+            output = io.StringIO()
+            writer = csv.DictWriter(output, fieldnames=['timestamp', 'container_name', 'log'])
+            writer.writeheader()
+            writer.writerows(logs)
+            
+            logger.info(f"Exported {len(logs)} logs as CSV")
+            return output.getvalue(), 200, {
+                'Content-Disposition': 'attachment; filename=logs.csv',
+                'Content-Type': 'text/csv'
+            }
+        else:
+            logger.info(f"Exported {len(logs)} logs as JSON")
+            return jsonify({
+                "success": True,
+                "data": logs,
+                "count": len(logs)
+            })
+    except Exception as e:
+        logger.exception("Error exporting logs")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/logs/stream', methods=['GET'])
+def api_logs_stream():
+    """Stream logs in real-time (Server-Sent Events)."""
+    try:
+        def generate():
+            last_count = 0
+            while True:
+                logs = get_container_logs()
+                if len(logs) > last_count:
+                    new_logs = logs[last_count:]
+                    for log in new_logs:
+                        yield f"data: {json.dumps(log)}\n\n"
+                    last_count = len(logs)
+                import time
+                time.sleep(1)
+        
+        return generate(), 200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive'
+        }
+    except Exception as e:
+        logger.exception("Error streaming logs")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/images', methods=['GET'])
+def api_get_images():
+    """Get list of all local images."""
+    try:
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        images = podman.get_all_images_info()
+        logger.info(f"Fetched {len(images)} local images")
+        return jsonify({"success": True, "data": images})
+    except Exception as e:
+        logger.exception("Error fetching images")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/images/search', methods=['GET'])
+def api_search_images():
+    """Search for images in registries."""
+    try:
+        query = request.args.get('q', '')
+        limit = int(request.args.get('limit', 25))
+        
+        if not query:
+            return jsonify({"success": False, "error": "Search query is required"}), 400
+        
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        results = podman.search_images(query, limit)
+        logger.info(f"Searched for images: {query} - Found {len(results)} results")
+        return jsonify({"success": True, "data": results})
+    except Exception as e:
+        logger.exception("Error searching images")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/images/pull', methods=['POST'])
+def api_pull_image():
+    """Pull an image from a registry."""
+    try:
+        data = request.get_json()
+        image_name = data.get('image_name')
+        
+        if not image_name:
+            return jsonify({"success": False, "error": "Image name is required"}), 400
+        
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        success = podman.pull_image(image_name)
+        if success:
+            logger.info(f"Image pulled successfully: {image_name}")
+            return jsonify({"success": True, "message": f"Image {image_name} pulled successfully"})
+        else:
+            return jsonify({"success": False, "error": f"Failed to pull image {image_name}"}), 500
+    except Exception as e:
+        logger.exception("Error pulling image")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/images/push', methods=['POST'])
+def api_push_image():
+    """Push an image to a registry."""
+    try:
+        data = request.get_json()
+        image_name = data.get('image_name')
+        registry = data.get('registry', None)
+        
+        if not image_name:
+            return jsonify({"success": False, "error": "Image name is required"}), 400
+        
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        success = podman.push_image(image_name, registry)
+        if success:
+            logger.info(f"Image pushed successfully: {image_name}")
+            return jsonify({"success": True, "message": f"Image {image_name} pushed successfully"})
+        else:
+            return jsonify({"success": False, "error": f"Failed to push image {image_name}"}), 500
+    except Exception as e:
+        logger.exception("Error pushing image")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/images/remove', methods=['POST'])
+def api_remove_image():
+    """Remove a local image."""
+    try:
+        data = request.get_json()
+        image_name = data.get('image_name')
+        
+        if not image_name:
+            return jsonify({"success": False, "error": "Image name is required"}), 400
+        
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        success = podman.remove_image(image_name)
+        if success:
+            logger.info(f"Image removed successfully: {image_name}")
+            return jsonify({"success": True, "message": f"Image {image_name} removed successfully"})
+        else:
+            return jsonify({"success": False, "error": f"Failed to remove image {image_name}"}), 500
+    except Exception as e:
+        logger.exception("Error removing image")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/images/<image_name>/details', methods=['GET'])
+def api_image_details(image_name):
+    """Get detailed information about an image."""
+    try:
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        details = podman.get_image_details(image_name)
+        if details:
+            logger.info(f"Fetched details for image: {image_name}")
+            return jsonify({"success": True, "data": details})
+        else:
+            return jsonify({"success": False, "error": f"Image {image_name} not found"}), 404
+    except Exception as e:
+        logger.exception(f"Error getting image details for {image_name}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/images/<image_name>/history', methods=['GET'])
+def api_image_history(image_name):
+    """Get the history/layers of an image."""
+    try:
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        history = podman.get_image_history(image_name)
+        logger.info(f"Fetched history for image: {image_name}")
+        return jsonify({"success": True, "data": history})
+    except Exception as e:
+        logger.exception(f"Error getting image history for {image_name}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/images/tag', methods=['POST'])
+def api_tag_image():
+    """Tag an image with a new name."""
+    try:
+        data = request.get_json()
+        source_image = data.get('source_image')
+        target_image = data.get('target_image')
+        
+        if not source_image or not target_image:
+            return jsonify({"success": False, "error": "Source and target image names are required"}), 400
+        
+        if podman is None:
+            return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
+        
+        success = podman.tag_image(source_image, target_image)
+        if success:
+            logger.info(f"Image tagged: {source_image} -> {target_image}")
+            return jsonify({"success": True, "message": f"Image tagged successfully"})
+        else:
+            return jsonify({"success": False, "error": "Failed to tag image"}), 500
+    except Exception as e:
+        logger.exception("Error tagging image")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == '__main__':
     # Perform initial sync when starting the application

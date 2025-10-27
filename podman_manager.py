@@ -430,3 +430,330 @@ class PodmanManager:
             }
         
         return health_data
+    
+    def get_container_ports(self, container_name):
+        """Get the port mappings for a container."""
+        try:
+            # Get port mappings from container inspect
+            output = self._run_cmd([
+                "podman", "inspect", container_name, 
+                "--format", "json"
+            ])
+            
+            if output:
+                container_info = json.loads(output)
+                if isinstance(container_info, list) and container_info:
+                    container_data = container_info[0]
+                    
+                    # Get network settings
+                    network_settings = container_data.get('NetworkSettings', {})
+                    ports = network_settings.get('Ports', {})
+                    
+                    # Get host config ports
+                    host_config = container_data.get('HostConfig', {})
+                    port_bindings = host_config.get('PortBindings', {})
+                    
+                    # Parse port mappings
+                    port_mappings = []
+                    
+                    if ports:
+                        for container_port, host_ports in ports.items():
+                            if host_ports and isinstance(host_ports, list):
+                                for host_mapping in host_ports:
+                                    if host_mapping:
+                                        host_port = host_mapping.get('HostPort', '')
+                                        host_ip = host_mapping.get('HostIp', '0.0.0.0')
+                                        if host_port:
+                                            port_mappings.append({
+                                                'container_port': container_port,
+                                                'host_port': host_port,
+                                                'host_ip': host_ip,
+                                                'url': f"http://{host_ip}:{host_port}" if host_ip != '0.0.0.0' else f"http://127.0.0.1:{host_port}"
+                                            })
+                    
+                    # Alternative method: check published ports
+                    if not port_mappings and port_bindings:
+                        for container_port, bindings in port_bindings.items():
+                            if bindings and isinstance(bindings, list):
+                                for binding in bindings:
+                                    host_port = binding.get('HostPort', '')
+                                    if host_port:
+                                        port_mappings.append({
+                                            'container_port': container_port,
+                                            'host_port': host_port,
+                                            'host_ip': '127.0.0.1',
+                                            'url': f"http://127.0.0.1:{host_port}"
+                                        })
+                    
+                    return port_mappings
+                    
+            return []
+            
+        except Exception as e:
+            print(f"Error getting ports for {container_name}: {e}")
+            return []
+
+    def get_container_web_url(self, container_name):
+        """Get the primary web URL for a container (HTTP port 80/8080/3000 etc.)."""
+        ports = self.get_container_ports(container_name)
+        
+        if not ports:
+            return None
+        
+        # Prioritize common web ports
+        web_port_priority = ['80', '8080', '3000', '5000', '8000', '8081', '4200', '3001']
+        
+        for priority_port in web_port_priority:
+            for port_mapping in ports:
+                if port_mapping['container_port'].startswith(priority_port + '/'):
+                    return port_mapping['url']
+        
+        # If no common web ports, return the first available port
+        return ports[0]['url'] if ports else None
+
+    def get_container_status_for_ui(self, container_name):
+        """Get enhanced container status including web URL for UI."""
+        basic_info = {
+            'name': container_name,
+            'web_url': None,
+            'has_web_interface': False,
+            'ports': []
+        }
+        
+        # Check if container is running
+        status_cmd = ["podman", "inspect", container_name, "--format", "{{.State.Status}}"]
+        status = self._run_cmd(status_cmd).strip().lower()
+        
+        if status == 'running':
+            ports = self.get_container_ports(container_name)
+            web_url = self.get_container_web_url(container_name)
+            
+            basic_info.update({
+                'ports': ports,
+                'web_url': web_url,
+                'has_web_interface': web_url is not None,
+                'status': 'running'
+            })
+        else:
+            basic_info['status'] = status
+        
+        return basic_info
+
+    def get_container_network_info(self, container_name):
+        """Get detailed network information for a container."""
+        try:
+            # Get container inspect data
+            output = self._run_cmd([
+                "podman", "inspect", container_name, "--format", "json"
+            ])
+            
+            if output:
+                container_info = json.loads(output)
+                if isinstance(container_info, list) and container_info:
+                    container_data = container_info[0]
+                    
+                    # Get network settings
+                    network_settings = container_data.get('NetworkSettings', {})
+                    
+                    # Get ports
+                    ports = self.get_container_ports(container_name)
+                    
+                    # Get networks
+                    networks = network_settings.get('Networks', {})
+                    network_list = []
+                    
+                    for network_name, network_info in networks.items():
+                        ip_address = network_info.get('IPAddress', 'N/A')
+                        gateway = network_info.get('Gateway', 'N/A')
+                        network_list.append({
+                            'name': network_name,
+                            'ip_address': ip_address,
+                            'gateway': gateway
+                        })
+                    
+                    # Get hostname
+                    hostname = container_data.get('Config', {}).get('Hostname', 'N/A')
+                    
+                    # Get DNS settings
+                    dns = network_settings.get('DNSServers', [])
+                    
+                    return {
+                        'ports': ports,
+                        'networks': network_list,
+                        'hostname': hostname,
+                        'dns_servers': dns,
+                        'ip_address': network_settings.get('IPAddress', 'N/A'),
+                        'gateway': network_settings.get('Gateway', 'N/A'),
+                        'mac_address': network_settings.get('MacAddress', 'N/A')
+                    }
+            
+            return {
+                'ports': [],
+                'networks': [],
+                'hostname': 'N/A',
+                'dns_servers': [],
+                'ip_address': 'N/A',
+                'gateway': 'N/A',
+                'mac_address': 'N/A'
+            }
+            
+        except Exception as e:
+            print(f"Error getting network info for {container_name}: {e}")
+            return {
+                'ports': [],
+                'networks': [],
+                'hostname': 'N/A',
+                'dns_servers': [],
+                'ip_address': 'N/A',
+                'gateway': 'N/A',
+                'mac_address': 'N/A',
+                'error': str(e)
+            }
+
+    # ========== REGISTRY MANAGEMENT METHODS ==========
+
+    def get_images(self):
+        """Get list of all local images."""
+        try:
+            output = self._run_cmd(["podman", "images", "--format", "json"])
+            if output:
+                images = json.loads(output)
+                return images if isinstance(images, list) else []
+            return []
+        except Exception as e:
+            print(f"Error getting images: {e}")
+            return []
+
+    def search_images(self, query, limit=25):
+        """Search for images in Docker Hub and other registries."""
+        try:
+            output = self._run_cmd([
+                "podman", "search", query, "--limit", str(limit), "--format", "json"
+            ])
+            if output:
+                results = json.loads(output)
+                return results if isinstance(results, list) else []
+            return []
+        except Exception as e:
+            print(f"Error searching images: {e}")
+            return []
+
+    def pull_image(self, image_name):
+        """Pull an image from a registry."""
+        try:
+            self._run_cmd(["podman", "pull", image_name])
+            print(f"✅ Image pulled successfully: {image_name}")
+            return True
+        except Exception as e:
+            print(f"❌ Error pulling image {image_name}: {e}")
+            return False
+
+    def push_image(self, image_name, registry=None):
+        """Push an image to a registry."""
+        try:
+            if registry:
+                full_name = f"{registry}/{image_name}"
+                self._run_cmd(["podman", "tag", image_name, full_name])
+                self._run_cmd(["podman", "push", full_name])
+            else:
+                self._run_cmd(["podman", "push", image_name])
+            print(f"✅ Image pushed successfully: {image_name}")
+            return True
+        except Exception as e:
+            print(f"❌ Error pushing image {image_name}: {e}")
+            return False
+
+    def remove_image(self, image_name):
+        """Remove a local image."""
+        try:
+            self._run_cmd(["podman", "rmi", image_name])
+            print(f"✅ Image removed successfully: {image_name}")
+            return True
+        except Exception as e:
+            print(f"❌ Error removing image {image_name}: {e}")
+            return False
+
+    def get_image_details(self, image_name):
+        """Get detailed information about an image."""
+        try:
+            output = self._run_cmd([
+                "podman", "inspect", image_name, "--format", "json"
+            ])
+            if output:
+                image_info = json.loads(output)
+                if isinstance(image_info, list) and image_info:
+                    return image_info[0]
+            return None
+        except Exception as e:
+            print(f"Error getting image details for {image_name}: {e}")
+            return None
+
+    def tag_image(self, source_image, target_image):
+        """Tag an image with a new name."""
+        try:
+            self._run_cmd(["podman", "tag", source_image, target_image])
+            print(f"✅ Image tagged successfully: {source_image} -> {target_image}")
+            return True
+        except Exception as e:
+            print(f"❌ Error tagging image: {e}")
+            return False
+
+    def get_image_history(self, image_name):
+        """Get the history/layers of an image."""
+        try:
+            output = self._run_cmd([
+                "podman", "history", image_name, "--format", "json"
+            ])
+            if output:
+                history = json.loads(output)
+                return history if isinstance(history, list) else []
+            return []
+        except Exception as e:
+            print(f"Error getting image history for {image_name}: {e}")
+            return []
+
+    def get_image_size(self, image_name):
+        """Get the size of an image."""
+        try:
+            images = self.get_images()
+            for image in images:
+                if image_name in image.get('Names', []) or image_name == image.get('Repository', ''):
+                    size = image.get('Size', 0)
+                    return self._bytes_to_human(size) if isinstance(size, int) else size
+            return 'N/A'
+        except Exception as e:
+            print(f"Error getting image size for {image_name}: {e}")
+            return 'N/A'
+
+    def get_all_images_info(self):
+        """Get comprehensive information about all local images."""
+        try:
+            images = self.get_images()
+            images_info = []
+            
+            for image in images:
+                repo = image.get('Repository', 'unknown')
+                tag = image.get('Tag', 'latest')
+                image_id = image.get('Id', '')[:12]
+                size = image.get('Size', 0)
+                created = image.get('Created', 'unknown')
+                
+                # Convert size to human readable format
+                if isinstance(size, int):
+                    size_str = self._bytes_to_human(size)
+                else:
+                    size_str = str(size)
+                
+                images_info.append({
+                    'repository': repo,
+                    'tag': tag,
+                    'image_id': image_id,
+                    'size': size_str,
+                    'created': created,
+                    'full_name': f"{repo}:{tag}" if repo != 'unknown' else 'unknown'
+                })
+            
+            return images_info
+        except Exception as e:
+            print(f"Error getting all images info: {e}")
+            return []
