@@ -3,6 +3,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import json
 from flask import Flask, render_template, jsonify, request
+from flask_cors import CORS  # Add this import
 from webhook_handler import handle_webhook
 from podman_manager import PodmanManager
 from database import init_db, get_container_logs, get_container_status
@@ -10,6 +11,9 @@ import atexit
 from database import close_db_connection
 
 app = Flask(__name__)
+
+# Enable CORS for all routes - IMPORTANT FOR REACT INTEGRATION
+CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"])  # React dev server
 
 # Ensure logs folder exists
 LOG_DIR = os.path.join(os.path.dirname(__file__), 'logs')
@@ -56,14 +60,19 @@ def cleanup():
 def add_cors_headers(response):
     """Add CORS headers to allow frontend requests."""
     response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
     return response
 
 @app.route('/')
 def dashboard():
     """Render the main dashboard page."""
-    return render_template('dashboard.html')
+    return jsonify({
+        "message": "AutoPod API is running! Use React frontend at http://localhost:3000",
+        "status": "active",
+        "version": "1.0.0"
+    })
 
 @app.route('/api/status')
 def api_status():
@@ -152,7 +161,8 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "podman_initialized": podman is not None,
-        "database_initialized": True
+        "database_initialized": True,
+        "frontend_ready": True
     })
 
 # Container Management Endpoints
@@ -691,6 +701,15 @@ def api_tag_image():
         return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == '__main__':
+    # Install flask-cors if not already installed
+    try:
+        import flask_cors
+    except ImportError:
+        print("⚠️  Installing flask-cors...")
+        import subprocess
+        subprocess.check_call(["pip", "install", "flask-cors"])
+        print("✅ flask-cors installed successfully!")
+    
     # Perform initial sync when starting the application
     if podman:
         try:
@@ -709,6 +728,7 @@ if __name__ == '__main__':
     print(f"   • http://localhost:5000") 
     print(f"   • http://10.3.33.220:5000")
     print("🔧 Debug mode: ON")
+    print("🌐 CORS Enabled for React frontend")
     print("⏳ Starting server...")
     print("="*60 + "\n")
     
