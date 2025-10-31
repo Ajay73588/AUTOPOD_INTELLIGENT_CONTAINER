@@ -15,6 +15,8 @@ const Dashboard = () => {
   });
   const [containers, setContainers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingActions, setLoadingActions] = useState({});
+  const [actionStatus, setActionStatus] = useState('');
 
   useEffect(() => {
     fetchDashboardData();
@@ -51,17 +53,71 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      setActionStatus('Error fetching dashboard data');
     } finally {
       setLoading(false);
     }
   };
 
+  const setActionLoading = (containerName, action, isLoading) => {
+    setLoadingActions(prev => ({
+      ...prev,
+      [`${containerName}_${action}`]: isLoading
+    }));
+  };
+
+  const handleContainerAction = async (action, containerName) => {
+    try {
+      setActionLoading(containerName, action, true);
+      setActionStatus(`${action}ing container ${containerName}...`);
+      
+      let response;
+      switch (action) {
+        case 'start':
+          response = await apiService.startContainer(containerName);
+          break;
+        case 'stop':
+          response = await apiService.stopContainer(containerName);
+          break;
+        case 'restart':
+          response = await apiService.restartContainer(containerName);
+          break;
+        case 'remove':
+          if (!window.confirm(`Are you sure you want to remove container ${containerName}?`)) {
+            setActionStatus('');
+            setActionLoading(containerName, action, false);
+            return;
+          }
+          response = await apiService.removeContainer(containerName);
+          break;
+        default:
+          setActionLoading(containerName, action, false);
+          return;
+      }
+
+      if (response.data.success) {
+        setActionStatus(`✅ Container ${containerName} ${action}ed successfully`);
+        setTimeout(fetchDashboardData, 1000);
+      } else {
+        setActionStatus(`❌ Failed to ${action} container: ${response.data.error}`);
+      }
+    } catch (error) {
+      console.error(`Error ${action} container:`, error);
+      setActionStatus(`❌ Error ${action}ing container: ${error.message}`);
+    } finally {
+      setActionLoading(containerName, action, false);
+    }
+  };
+
   const handleSync = async () => {
     try {
+      setActionStatus('Syncing containers...');
       await apiService.syncContainers();
+      setActionStatus('✅ Sync completed successfully');
       fetchDashboardData();
     } catch (error) {
       console.error('Error syncing containers:', error);
+      setActionStatus('❌ Error syncing containers');
     }
   };
 
@@ -71,6 +127,12 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
+      {actionStatus && (
+        <div className={`status-message ${actionStatus.includes('✅') ? 'success' : 'error'}`}>
+          {actionStatus}
+        </div>
+      )}
+
       {/* Quick Stats */}
       <div className="stats-grid">
         <StatCard
@@ -111,7 +173,12 @@ const Dashboard = () => {
           <h2>📦 Recent Containers</h2>
           <p className="section-subtitle">Your recently active containers</p>
         </div>
-        <ContainerGrid containers={containers} showActions={true} />
+        <ContainerGrid 
+          containers={containers} 
+          showActions={true} 
+          onContainerAction={handleContainerAction}
+          loadingActions={loadingActions}
+        />
       </section>
     </div>
   );

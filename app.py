@@ -12,8 +12,12 @@ from database import close_db_connection
 
 app = Flask(__name__)
 
-# Enable CORS for all routes - IMPORTANT FOR REACT INTEGRATION
-CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"])  # React dev server
+# Enhanced CORS configuration for React frontend
+CORS(app, 
+     origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Origin"],
+     supports_credentials=True)
 
 # Ensure logs folder exists
 LOG_DIR = os.path.join(os.path.dirname(__file__), 'logs')
@@ -59,8 +63,8 @@ def cleanup():
 @app.after_request
 def add_cors_headers(response):
     """Add CORS headers to allow frontend requests."""
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Access-Control-Allow-Origin'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Credentials'] = 'true'
     return response
@@ -96,9 +100,12 @@ def api_logs():
         logger.exception("Error fetching logs")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/api/sync', methods=['POST'])
+@app.route('/api/sync', methods=['POST', 'OPTIONS'])
 def api_sync():
     """API endpoint to manually sync Podman containers with database."""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         if podman is None:
             return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
@@ -141,20 +148,52 @@ def api_debug_containers():
         logger.exception("Error in debug endpoint")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/webhook', methods=['POST'])
+@app.route('/webhook', methods=['POST', 'OPTIONS'])
 def webhook():
     """Handle GitHub webhook events."""
-    try:
-        if podman is None:
-            raise RuntimeError("PodmanManager not initialized")
+    if request.method == 'OPTIONS':
+        return '', 200
         
-        handle_webhook(podman)
-        logger.info("Webhook processed successfully")
-        return {"status": "success", "message": "Webhook processed"}, 200
+    try:
+        print("🔍 Webhook received - starting deployment")
+        
+        if podman is None:
+            return jsonify({"status": "error", "message": "PodmanManager not initialized"}), 500
+        
+        # Get JSON data from request
+        data = request.get_json()
+        
+        if data is None:
+            return jsonify({"status": "error", "message": "No JSON data received"}), 400
+        
+        # Return immediately and process in background
+        import threading
+        
+        def process_webhook_background():
+            try:
+                print("🔄 Starting background webhook processing...")
+                result = handle_webhook(podman, data)
+                print(f"✅ Background webhook completed: {result}")
+            except Exception as e:
+                print(f"❌ Background webhook failed: {e}")
+        
+        # Start background thread
+        thread = threading.Thread(target=process_webhook_background)
+        thread.daemon = True
+        thread.start()
+        
+        # Return immediate response
+        return jsonify({
+            "status": "success", 
+            "message": "Deployment started in background. Check logs for progress.",
+            "note": "This may take 2-5 minutes to complete"
+        }), 202  # 202 Accepted
+        
     except Exception as e:
         logger.exception("Webhook handling error")
-        return {"status": "error", "message": str(e)}, 500
-
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
+    
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
@@ -166,9 +205,12 @@ def health_check():
     })
 
 # Container Management Endpoints
-@app.route('/api/containers/start', methods=['POST'])
+@app.route('/api/containers/start', methods=['POST', 'OPTIONS'])
 def api_start_container():
     """API endpoint to start a container."""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         data = request.get_json()
         container_name = data.get('container_name')
@@ -182,17 +224,22 @@ def api_start_container():
         success = podman.start_container(container_name)
         if success:
             podman.sync_with_db()  # Update the database
+            logger.info(f"Container {container_name} started successfully")
             return jsonify({"success": True, "message": f"Container {container_name} started"})
         else:
+            logger.error(f"Failed to start container {container_name}")
             return jsonify({"success": False, "error": f"Failed to start container {container_name}"}), 500
             
     except Exception as e:
         logger.exception("Error starting container")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/api/containers/stop', methods=['POST'])
+@app.route('/api/containers/stop', methods=['POST', 'OPTIONS'])
 def api_stop_container():
     """API endpoint to stop a container."""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         data = request.get_json()
         container_name = data.get('container_name')
@@ -206,17 +253,22 @@ def api_stop_container():
         success = podman.stop_container(container_name)
         if success:
             podman.sync_with_db()  # Update the database
+            logger.info(f"Container {container_name} stopped successfully")
             return jsonify({"success": True, "message": f"Container {container_name} stopped"})
         else:
+            logger.error(f"Failed to stop container {container_name}")
             return jsonify({"success": False, "error": f"Failed to stop container {container_name}"}), 500
             
     except Exception as e:
         logger.exception("Error stopping container")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/api/containers/restart', methods=['POST'])
+@app.route('/api/containers/restart', methods=['POST', 'OPTIONS'])
 def api_restart_container():
     """API endpoint to restart a container."""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         data = request.get_json()
         container_name = data.get('container_name')
@@ -230,17 +282,22 @@ def api_restart_container():
         success = podman.restart_container(container_name)
         if success:
             podman.sync_with_db()  # Update the database
+            logger.info(f"Container {container_name} restarted successfully")
             return jsonify({"success": True, "message": f"Container {container_name} restarted"})
         else:
+            logger.error(f"Failed to restart container {container_name}")
             return jsonify({"success": False, "error": f"Failed to restart container {container_name}"}), 500
             
     except Exception as e:
         logger.exception("Error restarting container")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/api/containers/remove', methods=['POST'])
+@app.route('/api/containers/remove', methods=['POST', 'OPTIONS'])
 def api_remove_container():
     """API endpoint to remove a container."""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         data = request.get_json()
         container_name = data.get('container_name')
@@ -254,8 +311,10 @@ def api_remove_container():
         success = podman.remove_container(container_name)
         if success:
             podman.sync_with_db()  # Update the database
+            logger.info(f"Container {container_name} removed successfully")
             return jsonify({"success": True, "message": f"Container {container_name} removed"})
         else:
+            logger.error(f"Failed to remove container {container_name}")
             return jsonify({"success": False, "error": f"Failed to remove container {container_name}"}), 500
             
     except Exception as e:
@@ -329,9 +388,12 @@ def api_container_weburl(container_name):
         logger.exception(f"Error getting web URL for {container_name}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/api/containers/<container_name>/open', methods=['POST'])
+@app.route('/api/containers/<container_name>/open', methods=['POST', 'OPTIONS'])
 def api_open_container_web(container_name):
     """Open container's web interface."""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         if podman is None:
             return jsonify({"success": False, "error": "PodmanManager not initialized"}), 500
@@ -575,9 +637,12 @@ def api_search_images():
         logger.exception("Error searching images")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/api/images/pull', methods=['POST'])
+@app.route('/api/images/pull', methods=['POST', 'OPTIONS'])
 def api_pull_image():
     """Pull an image from a registry."""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         data = request.get_json()
         image_name = data.get('image_name')
@@ -598,9 +663,12 @@ def api_pull_image():
         logger.exception("Error pulling image")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/api/images/push', methods=['POST'])
+@app.route('/api/images/push', methods=['POST', 'OPTIONS'])
 def api_push_image():
     """Push an image to a registry."""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         data = request.get_json()
         image_name = data.get('image_name')
@@ -622,9 +690,12 @@ def api_push_image():
         logger.exception("Error pushing image")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/api/images/remove', methods=['POST'])
+@app.route('/api/images/remove', methods=['POST', 'OPTIONS'])
 def api_remove_image():
     """Remove a local image."""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         data = request.get_json()
         image_name = data.get('image_name')
@@ -676,9 +747,12 @@ def api_image_history(image_name):
         logger.exception(f"Error getting image history for {image_name}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/api/images/tag', methods=['POST'])
+@app.route('/api/images/tag', methods=['POST', 'OPTIONS'])
 def api_tag_image():
     """Tag an image with a new name."""
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         data = request.get_json()
         source_image = data.get('source_image')

@@ -1,0 +1,47 @@
+.container-management {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.page-header p {
+  color: #6b7280;
+  font-size: 1.125rem;
+}
+
+.management-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+}
+
+.details-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  height: fit-content;
+  position: sticky;
+  top: 24px;
+}
+
+@media (max-width: 1024px) {
+  .management-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .details-section {
+    position: static;
+  }
+}

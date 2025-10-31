@@ -8,6 +8,8 @@ const ContainerManagement = () => {
   const [containers, setContainers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedContainer, setSelectedContainer] = useState(null);
+  const [actionStatus, setActionStatus] = useState('');
+  const [loadingActions, setLoadingActions] = useState({}); // Track loading states
 
   useEffect(() => {
     fetchContainers();
@@ -19,17 +21,38 @@ const ContainerManagement = () => {
     try {
       const response = await apiService.getContainers();
       if (response.data.success) {
-        setContainers(response.data.data);
+        setContainers(response.data.data || []);
+        
+        // Keep the selected container updated if it exists
+        if (selectedContainer) {
+          const updatedContainer = (response.data.data || []).find(
+            container => container.Names?.[0] === selectedContainer.Names?.[0]
+          );
+          if (updatedContainer) {
+            setSelectedContainer(updatedContainer);
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching containers:', error);
+      setActionStatus('Error fetching containers');
     } finally {
       setLoading(false);
     }
   };
 
+  const setActionLoading = (containerName, action, isLoading) => {
+    setLoadingActions(prev => ({
+      ...prev,
+      [`${containerName}_${action}`]: isLoading
+    }));
+  };
+
   const handleContainerAction = async (action, containerName) => {
     try {
+      setActionLoading(containerName, action, true);
+      setActionStatus(`${action}ing container ${containerName}...`);
+      
       let response;
       switch (action) {
         case 'start':
@@ -42,20 +65,34 @@ const ContainerManagement = () => {
           response = await apiService.restartContainer(containerName);
           break;
         case 'remove':
-          if (!window.confirm(`Are you sure you want to remove container ${containerName}?`)) {
+          if (!window.confirm(`Are you sure you want to remove container ${containerName}? This action cannot be undone.`)) {
+            setActionStatus('');
+            setActionLoading(containerName, action, false);
             return;
           }
           response = await apiService.removeContainer(containerName);
+          // Clear selection if the removed container was selected
+          if (selectedContainer && (selectedContainer.Names?.[0] === containerName || selectedContainer.container_name === containerName)) {
+            setSelectedContainer(null);
+          }
           break;
         default:
+          setActionLoading(containerName, action, false);
           return;
       }
 
       if (response.data.success) {
-        fetchContainers();
+        setActionStatus(`✅ Container ${containerName} ${action}ed successfully`);
+        // Refresh containers after action
+        setTimeout(fetchContainers, 1000);
+      } else {
+        setActionStatus(`❌ Failed to ${action} container: ${response.data.error}`);
       }
     } catch (error) {
       console.error(`Error ${action} container:`, error);
+      setActionStatus(`❌ Error ${action}ing container: ${error.message}`);
+    } finally {
+      setActionLoading(containerName, action, false);
     }
   };
 
@@ -70,6 +107,12 @@ const ContainerManagement = () => {
         <p>Monitor and manage your Podman containers</p>
       </div>
 
+      {actionStatus && (
+        <div className={`status-message ${actionStatus.includes('✅') ? 'success' : 'error'}`}>
+          {actionStatus}
+        </div>
+      )}
+
       <div className="management-layout">
         <div className="containers-section">
           <ContainerGrid
@@ -78,6 +121,7 @@ const ContainerManagement = () => {
             onContainerAction={handleContainerAction}
             onContainerSelect={setSelectedContainer}
             selectedContainer={selectedContainer}
+            loadingActions={loadingActions}
           />
         </div>
 
@@ -86,6 +130,7 @@ const ContainerManagement = () => {
             <ContainerActions
               container={selectedContainer}
               onAction={handleContainerAction}
+              loadingActions={loadingActions}
             />
           </div>
         )}

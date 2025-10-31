@@ -2,10 +2,10 @@ import axios from 'axios';
 
 const API_BASE = 'http://localhost:5000/api';
 
-// Create axios instance with default config
+// Create axios instance with longer timeout for webhook operations
 const apiClient = axios.create({
-  baseURL: API_BASE,
-  timeout: 10000,
+  baseURL: 'http://localhost:5000',
+  timeout: 300000, // 5 minutes timeout for long operations like deployments
   headers: {
     'Content-Type': 'application/json',
   },
@@ -21,68 +21,39 @@ apiClient.interceptors.response.use(
 );
 
 export const apiService = {
-  // Container endpoints
-  getContainers: () => apiClient.get('/containers'),
-  getContainerStatus: () => apiClient.get('/status'),
-  syncContainers: () => apiClient.post('/sync'),
+  // Container endpoints - normal timeout
+  getContainers: () => axios.get('/api/containers', { timeout: 10000 }),
+  getContainerStatus: () => axios.get('/api/status', { timeout: 10000 }),
+  syncContainers: () => axios.post('/api/sync', {}, { timeout: 10000 }),
   
-  // Container actions
+  // Container actions - normal timeout
   startContainer: (containerName) => 
-    apiClient.post('/containers/start', { container_name: containerName }),
+    apiClient.post('/api/containers/start', { container_name: containerName }, { timeout: 30000 }),
   stopContainer: (containerName) => 
-    apiClient.post('/containers/stop', { container_name: containerName }),
+    apiClient.post('/api/containers/stop', { container_name: containerName }, { timeout: 30000 }),
   restartContainer: (containerName) => 
-    apiClient.post('/containers/restart', { container_name: containerName }),
+    apiClient.post('/api/containers/restart', { container_name: containerName }, { timeout: 30000 }),
   removeContainer: (containerName) => 
-    apiClient.post('/containers/remove', { container_name: containerName }),
+    apiClient.post('/api/containers/remove', { container_name: containerName }, { timeout: 30000 }),
   
-  // Health and stats
-  getContainerHealth: (containerName) => 
-    apiClient.get(`/containers/${containerName}/health`),
-  getAllContainersHealth: () => 
-    apiClient.get('/containers/health'),
-  getContainerStats: (containerName) => 
-    apiClient.get(`/containers/${containerName}/stats`),
-  
-  // Network info
-  getContainerNetwork: (containerName) => 
-    apiClient.get(`/containers/${containerName}/network`),
-  getAllNetworks: () => 
-    apiClient.get('/containers/network/all'),
-  getNetworkStats: () => 
-    apiClient.get('/network/stats'),
-  
-  // Logs
-  getLogs: () => apiClient.get('/logs'),
-  getAdvancedLogs: (params) => 
-    apiClient.get('/logs/advanced', { params }),
-  exportLogs: (format, container) => 
-    apiClient.get('/logs/export', { 
-      params: { format, container },
-      responseType: 'blob'
-    }),
-  
-  // Images
-  getImages: () => apiClient.get('/images'),
-  searchImages: (query, limit = 25) => 
-    apiClient.get('/images/search', { params: { q: query, limit } }),
-  pullImage: (imageName) => 
-    apiClient.post('/images/pull', { image_name: imageName }),
-  removeImage: (imageName) => 
-    apiClient.post('/images/remove', { image_name: imageName }),
-  tagImage: (sourceImage, targetImage) => 
-    apiClient.post('/images/tag', { source_image: sourceImage, target_image: targetImage }),
-  getImageDetails: (imageName) => 
-    apiClient.get(`/images/${imageName}/details`),
-  getImageHistory: (imageName) => 
-    apiClient.get(`/images/${imageName}/history`),
-  
-  // Webhooks
+  // Webhooks - LONG timeout for deployment operations
   triggerWebhook: (data) => 
-    apiClient.post('/webhook', data),
+    apiClient.post('/webhook', data, { timeout: 300000 }), // 5 minutes
   
-  // Health check
-  healthCheck: () => apiClient.get('/health')
+  // ... rest of your API endpoints with normal timeouts
+  getLogs: () => axios.get('/api/logs', { timeout: 10000 }),
+  getAdvancedLogs: (params) => 
+    axios.get('/api/logs/advanced', { params, timeout: 10000 }),
+  
+  // Images - longer timeout for pull operations
+  getImages: () => axios.get('/api/images', { timeout: 10000 }),
+  searchImages: (query, limit = 25) => 
+    axios.get('/api/images/search', { params: { q: query, limit }, timeout: 10000 }),
+  pullImage: (imageName) => 
+    apiClient.post('/api/images/pull', { image_name: imageName }, { timeout: 300000 }),
+  
+  // Health check - quick timeout
+  healthCheck: () => axios.get('/health', { timeout: 5000 })
 };
 
-export default apiService;
+export default apiClient;

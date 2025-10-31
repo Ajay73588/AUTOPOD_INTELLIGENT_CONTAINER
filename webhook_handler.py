@@ -9,11 +9,15 @@ import shutil
 
 logger = logging.getLogger('autopod')
 
-def handle_webhook(podman_manager):
+def handle_webhook(podman_manager, data=None):
     """Process GitHub webhook payload and trigger Podman actions."""
-    payload = request.get_json()
+    # Use provided data or get from request
+    if data is None:
+        payload = request.get_json()
+    else:
+        payload = data
     
-    logger.info(f"📨 Received webhook payload")
+    logger.info(f"📨 Received webhook payload: {payload}")
     
     # Handle different webhook payload formats
     repo_url = None
@@ -30,7 +34,7 @@ def handle_webhook(podman_manager):
         logger.info(f"🧪 Processing test webhook: {repo_name}")
     else:
         logger.error("❌ Invalid webhook payload format")
-        return {"status": "error", "message": "Invalid webhook payload: missing 'repository' or 'test' field"}, 400
+        return {"status": "error", "message": "Invalid webhook payload: missing 'repository' or 'test' field"}
 
     # Extract repository name from URL if provided
     if repo_url:
@@ -78,7 +82,7 @@ def handle_webhook(podman_manager):
         
         if not build_success:
             logger.error(f"❌ Image build failed: {image_name}")
-            return {"status": "error", "message": f"Image build failed for {image_name}"}, 500
+            return {"status": "error", "message": f"Image build failed for {image_name}"}
 
         logger.info(f"✅ Image built successfully: {image_name}")
 
@@ -98,7 +102,7 @@ def handle_webhook(podman_manager):
         
         if not run_success:
             logger.error(f"❌ Container run failed: {container_name}")
-            return {"status": "error", "message": f"Failed to run container {container_name}"}, 500
+            return {"status": "error", "message": f"Failed to run container {container_name}"}
 
         logger.info(f"✅ Container started successfully: {container_name} on port {port}")
 
@@ -126,7 +130,7 @@ def handle_webhook(podman_manager):
         logger.exception(f"💥 Error in webhook processing: {e}")
         # Clean up temporary directory on error
         shutil.rmtree(temp_dir, ignore_errors=True)
-        return {"status": "error", "message": f"Webhook processing failed: {str(e)}"}, 500
+        return {"status": "error", "message": f"Webhook processing failed: {str(e)}"}
 
 def extract_repo_name_from_url(repo_url):
     """Extract repository name from GitHub URL."""
