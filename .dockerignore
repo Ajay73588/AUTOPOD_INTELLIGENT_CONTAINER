@@ -1,0 +1,9 @@
+.git
+.gitignore
+README.md
+.env
+*.pyc
+__pycache__/
+node_modules/
+react-frontend/build/
+.DS_Store

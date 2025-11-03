@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Square, RotateCcw, Trash2, ExternalLink, Loader } from 'lucide-react';
+import { Play, Square, RotateCcw, Trash2, ExternalLink, Loader, Bug } from 'lucide-react';
 import '../styles/ContainerGrid.css';
 
 const ContainerGrid = ({ 
@@ -52,14 +52,29 @@ const ContainerGrid = ({
     }
   };
 
-  const handleAction = (action, containerName, e) => {
+  const handleAction = (action, containerName, container, e) => {
     e.stopPropagation();
+    console.log(`🔄 ContainerGrid: ${action} action for container:`, {
+      containerName,
+      actualNames: container.Names,
+      container_name: container.container_name,
+      status: container.Status,
+      state: container.State
+    });
+    
     if (onContainerAction) {
       onContainerAction(action, containerName);
     }
   };
 
   const handleContainerClick = (container) => {
+    console.log('🔍 Container clicked:', {
+      names: container.Names,
+      container_name: container.container_name,
+      status: container.Status,
+      state: container.State
+    });
+    
     if (onContainerSelect) {
       onContainerSelect(container);
     }
@@ -67,6 +82,41 @@ const ContainerGrid = ({
 
   const isActionLoading = (containerName, action) => {
     return loadingActions[`${containerName}_${action}`] || false;
+  };
+
+  // Function to get exact container name for display and actions
+  const getExactContainerName = (container) => {
+    // Try different possible name fields
+    return container.Names?.[0] || 
+           container.container_name || 
+           container.Name || 
+           'Unknown Container';
+  };
+
+  // Function to check if container is GitHub deployed
+  const isGitHubContainer = (container) => {
+    const name = getExactContainerName(container).toLowerCase();
+    return name.includes('autopod') || name.includes('webhook') || name.includes('github');
+  };
+
+  // Debug function to log container details
+  const debugContainer = (container, e) => {
+    e.stopPropagation();
+    const exactName = getExactContainerName(container);
+    console.log('🐛 Container Debug Info:', {
+      exactName,
+      allNames: container.Names,
+      container_name: container.container_name,
+      status: container.Status,
+      state: container.State,
+      id: container.Id,
+      image: container.Image,
+      isGitHub: isGitHubContainer(container),
+      ports: container.Ports
+    });
+    
+    // Show alert with basic info
+    alert(`Container Debug Info:\n\nName: ${exactName}\nStatus: ${container.Status}\nState: ${container.State}\nGitHub Container: ${isGitHubContainer(container) ? 'Yes' : 'No'}\n\nCheck browser console for full details.`);
   };
 
   if (!containers || containers.length === 0) {
@@ -82,33 +132,60 @@ const ContainerGrid = ({
   return (
     <div className="containers-grid">
       {containers.map((container, index) => {
-        const containerName = container.Names?.[0] || container.container_name || `container-${index}`;
+        const exactName = getExactContainerName(container);
+        const containerId = container.Id || container.id || `container-${index}`;
         const status = container.Status || container.status || 'Unknown';
         const image = container.Image || container.image || 'N/A';
         const created = container.Created || container.created_at;
         const ports = container.Ports || [];
+        const state = container.State || 'unknown';
         
-        const isRunning = status.toLowerCase().includes('running');
-        const isStopped = status.toLowerCase().includes('exited') || status.toLowerCase().includes('stopped');
+        const isRunning = status.toLowerCase().includes('running') || state.toLowerCase() === 'running';
+        const isStopped = status.toLowerCase().includes('exited') || 
+                         status.toLowerCase().includes('stopped') || 
+                         state.toLowerCase() === 'exited';
+        const isCreated = status.toLowerCase().includes('created') || state.toLowerCase() === 'created';
 
         const isSelected = selectedContainer && 
-          (selectedContainer.Names?.[0] === containerName || 
-           selectedContainer.container_name === containerName);
+          (selectedContainer.Names?.[0] === exactName || 
+           selectedContainer.container_name === exactName);
+
+        const isGitHub = isGitHubContainer(container);
 
         return (
           <div 
-            key={container.Id || container.id || index}
-            className={`container-card ${isSelected ? 'selected' : ''}`}
+            key={containerId}
+            className={`container-card ${isSelected ? 'selected' : ''} ${isGitHub ? 'github-container' : ''}`}
             onClick={() => handleContainerClick(container)}
           >
             <div className="container-header">
               <div className="container-name-section">
-                <div className="container-icon">🐳</div>
-                <div className="container-name">{containerName}</div>
+                <div className="container-icon">
+                  {isGitHub ? '🚀' : '🐳'}
+                </div>
+                <div className="container-name-info">
+                  <div className="container-name" title={exactName}>
+                    {exactName}
+                  </div>
+                  {isGitHub && (
+                    <div className="container-badge github-badge">
+                      GitHub
+                    </div>
+                  )}
+                </div>
               </div>
-              <span className={`status-badge ${getStatusBadge(status)}`}>
-                {getStatusText(status)}
-              </span>
+              <div className="header-right">
+                <span className={`status-badge ${getStatusBadge(status)}`}>
+                  {getStatusText(status)}
+                </span>
+                <button 
+                  className="debug-btn"
+                  onClick={(e) => debugContainer(container, e)}
+                  title="Debug Container Info"
+                >
+                  <Bug size={12} />
+                </button>
+              </div>
             </div>
 
             <div className="container-details">
@@ -123,6 +200,11 @@ const ContainerGrid = ({
                 <span className="detail-label">Status:</span>
                 <span className="detail-value">{status}</span>
               </div>
+
+              <div className="detail-item">
+                <span className="detail-label">State:</span>
+                <span className="detail-value">{state}</span>
+              </div>
               
               <div className="detail-item">
                 <span className="detail-label">Created:</span>
@@ -133,80 +215,109 @@ const ContainerGrid = ({
                 <div className="detail-item">
                   <span className="detail-label">Ports:</span>
                   <span className="detail-value ports">
-                    {ports.map(port => 
-                      `${port.PublicPort || port.HostPort || 'N/A'}:${port.PrivatePort || port.ContainerPort || 'N/A'}`
-                    ).join(', ')}
+                    {ports.map((port, idx) => (
+                      <span key={idx} className="port-mapping">
+                        {port.PublicPort || port.HostPort || 'N/A'}:{port.PrivatePort || port.ContainerPort || 'N/A'}
+                      </span>
+                    ))}
                   </span>
                 </div>
               )}
+
+              {/* Debug info - visible on hover or always for GitHub containers */}
+              <div className={`debug-info ${isGitHub ? 'always-visible' : ''}`}>
+                <div className="debug-item">
+                  <span className="debug-label">ID:</span>
+                  <span className="debug-value">{containerId.substring(0, 12)}</span>
+                </div>
+                <div className="debug-item">
+                  <span className="debug-label">All Names:</span>
+                  <span className="debug-value">{JSON.stringify(container.Names)}</span>
+                </div>
+                <div className="debug-item">
+                  <span className="debug-label">Container Name:</span>
+                  <span className="debug-value">{container.container_name || 'N/A'}</span>
+                </div>
+              </div>
             </div>
 
             {showActions && (
               <div className="container-actions">
-                <button 
-                  className="action-btn btn-success btn-sm"
-                  onClick={(e) => handleAction('start', containerName, e)}
-                  disabled={isRunning || isActionLoading(containerName, 'start')}
-                  title="Start Container"
-                >
-                  {isActionLoading(containerName, 'start') ? (
-                    <Loader size={14} className="spin" />
-                  ) : (
-                    <Play size={14} />
-                  )}
-                  <span>
-                    {isActionLoading(containerName, 'start') ? 'Starting...' : 'Start'}
-                  </span>
-                </button>
+                {/* Start Button - Show for stopped/created containers */}
+                {(isStopped || isCreated) && (
+                  <button 
+                    className="action-btn btn-success btn-sm"
+                    onClick={(e) => handleAction('start', exactName, container, e)}
+                    disabled={isActionLoading(exactName, 'start')}
+                    title="Start Container"
+                  >
+                    {isActionLoading(exactName, 'start') ? (
+                      <Loader size={14} className="spin" />
+                    ) : (
+                      <Play size={14} />
+                    )}
+                    <span>
+                      {isActionLoading(exactName, 'start') ? 'Starting...' : 'Start'}
+                    </span>
+                  </button>
+                )}
                 
-                <button 
-                  className="action-btn btn-warning btn-sm"
-                  onClick={(e) => handleAction('stop', containerName, e)}
-                  disabled={!isRunning || isActionLoading(containerName, 'stop')}
-                  title="Stop Container"
-                >
-                  {isActionLoading(containerName, 'stop') ? (
-                    <Loader size={14} className="spin" />
-                  ) : (
-                    <Square size={14} />
-                  )}
-                  <span>
-                    {isActionLoading(containerName, 'stop') ? 'Stopping...' : 'Stop'}
-                  </span>
-                </button>
+                {/* Stop Button - Show for running containers */}
+                {isRunning && (
+                  <button 
+                    className="action-btn btn-warning btn-sm"
+                    onClick={(e) => handleAction('stop', exactName, container, e)}
+                    disabled={isActionLoading(exactName, 'stop')}
+                    title="Stop Container"
+                  >
+                    {isActionLoading(exactName, 'stop') ? (
+                      <Loader size={14} className="spin" />
+                    ) : (
+                      <Square size={14} />
+                    )}
+                    <span>
+                      {isActionLoading(exactName, 'stop') ? 'Stopping...' : 'Stop'}
+                    </span>
+                  </button>
+                )}
                 
-                <button 
-                  className="action-btn btn-secondary btn-sm"
-                  onClick={(e) => handleAction('restart', containerName, e)}
-                  disabled={!isRunning || isActionLoading(containerName, 'restart')}
-                  title="Restart Container"
-                >
-                  {isActionLoading(containerName, 'restart') ? (
-                    <Loader size={14} className="spin" />
-                  ) : (
-                    <RotateCcw size={14} />
-                  )}
-                  <span>
-                    {isActionLoading(containerName, 'restart') ? 'Restarting...' : 'Restart'}
-                  </span>
-                </button>
+                {/* Restart Button - Show for running containers */}
+                {isRunning && (
+                  <button 
+                    className="action-btn btn-secondary btn-sm"
+                    onClick={(e) => handleAction('restart', exactName, container, e)}
+                    disabled={isActionLoading(exactName, 'restart')}
+                    title="Restart Container"
+                  >
+                    {isActionLoading(exactName, 'restart') ? (
+                      <Loader size={14} className="spin" />
+                    ) : (
+                      <RotateCcw size={14} />
+                    )}
+                    <span>
+                      {isActionLoading(exactName, 'restart') ? 'Restarting...' : 'Restart'}
+                    </span>
+                  </button>
+                )}
                 
+                {/* Remove Button - Always show but warn if container is running */}
                 <button 
                   className="action-btn btn-danger btn-sm"
-                  onClick={(e) => handleAction('remove', containerName, e)}
-                  disabled={isActionLoading(containerName, 'remove')}
-                  title="Remove Container"
+                  onClick={(e) => handleAction('remove', exactName, container, e)}
+                  disabled={isActionLoading(exactName, 'remove')}
+                  title={isRunning ? "Remove Container (will stop first)" : "Remove Container"}
                 >
-                  {isActionLoading(containerName, 'remove') ? (
+                  {isActionLoading(exactName, 'remove') ? (
                     <Loader size={14} className="spin" />
                   ) : (
                     <Trash2 size={14} />
                   )}
                   <span>
-                    {isActionLoading(containerName, 'remove') ? 'Removing...' : 'Remove'}
+                    {isActionLoading(exactName, 'remove') ? 'Removing...' : 'Remove'}
                   </span>
                 </button>
 
+                {/* Open Web Interface - Show for running containers with ports */}
                 {isRunning && ports.length > 0 && (
                   <button 
                     className="action-btn btn-primary btn-sm"
@@ -217,6 +328,7 @@ const ContainerGrid = ({
                       const hostPort = port.PublicPort || port.HostPort;
                       if (hostPort) {
                         const url = `http://localhost:${hostPort}`;
+                        console.log(`🌐 Opening web interface: ${url}`);
                         window.open(url, '_blank');
                       }
                     }}
@@ -226,6 +338,16 @@ const ContainerGrid = ({
                     <span>Open</span>
                   </button>
                 )}
+
+                {/* Debug Action Button */}
+                <button 
+                  className="action-btn btn-debug btn-sm"
+                  onClick={(e) => debugContainer(container, e)}
+                  title="Debug Container Information"
+                >
+                  <Bug size={14} />
+                  <span>Debug</span>
+                </button>
               </div>
             )}
           </div>

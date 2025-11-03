@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { apiService } from '../services/api';
+import '../styles/DeploymentSection.css';
 
 const DeploymentSection = () => {
   const [githubUrl, setGithubUrl] = useState('');
@@ -22,14 +23,11 @@ const DeploymentSection = () => {
       const deploymentData = {
         repository: {
           clone_url: githubUrl,
-          name: appName || 'auto-deployed-app'
-        },
-        after: "auto-deploy-" + Date.now()
+          name: appName || getRepoNameFromUrl(githubUrl)
+        }
       };
 
       console.log('Sending deployment request:', deploymentData);
-
-      // Update progress
       setDeploymentProgress('Sending request to server...');
 
       const response = await apiService.triggerWebhook(deploymentData);
@@ -49,28 +47,24 @@ const DeploymentSection = () => {
         setGithubUrl('');
         setAppName('');
         
-        // Refresh the page after 5 seconds to show new container
-        setTimeout(() => {
-          window.location.reload();
-        }, 5000);
       } else {
-        setStatusMessage(`❌ Deployment failed: ${response.data?.message || 'Unknown error'}`);
-        setDeploymentProgress('Deployment failed');
+        const errorMsg = response.data?.message || 'Unknown error occurred';
+        setStatusMessage(`❌ Deployment failed: ${errorMsg}`);
+        setDeploymentProgress('Deployment failed - check backend logs');
       }
     } catch (error) {
       console.error('Deployment error details:', error);
       
       if (error.code === 'ECONNABORTED') {
-        setStatusMessage('⏳ Deployment is taking longer than expected. Please check the backend logs for progress.');
-        setDeploymentProgress('Operation in progress... This may take a few minutes for large repositories.');
-        
-        // Don't clear the form - let user check backend and try again
+        setStatusMessage('⏳ Deployment is taking longer than expected. The operation is running in background.');
+        setDeploymentProgress('Building container image... This may take several minutes.');
       } else if (error.response) {
-        setStatusMessage(`❌ Server error: ${error.response.data?.message || error.response.statusText}`);
+        const serverError = error.response.data?.message || error.response.statusText;
+        setStatusMessage(`❌ Server error: ${serverError}`);
         setDeploymentProgress('Server returned an error');
       } else if (error.request) {
         setStatusMessage('❌ No response from server. Check if backend is running on port 5000.');
-        setDeploymentProgress('Connection failed');
+        setDeploymentProgress('Connection failed - backend might be down');
       } else {
         setStatusMessage(`❌ Deployment error: ${error.message}`);
         setDeploymentProgress('Unexpected error occurred');
@@ -80,21 +74,20 @@ const DeploymentSection = () => {
     }
   };
 
-  const triggerSampleDeployment = async () => {
-    // Use a smaller, faster repository for testing
-    setGithubUrl('https://github.com/nginx/nginx.git');
-    setAppName('nginx-demo');
+  const triggerSampleDeployment = (sampleUrl, sampleName) => {
+    setGithubUrl(sampleUrl);
+    setAppName(sampleName);
     
     // Auto-trigger deployment after setting values
     setTimeout(() => {
       triggerDeployment();
-    }, 100);
+    }, 500);
   };
 
   const getRepoNameFromUrl = (url) => {
     try {
       const match = url.match(/github\.com\/([^\/]+\/[^\/]+?)(?:\.git)?$/);
-      return match ? match[1].replace('/', '-') : 'github-app';
+      return match ? match[1].split('/').pop().replace('.git', '') : 'github-app';
     } catch {
       return 'github-app';
     }
@@ -108,114 +101,155 @@ const DeploymentSection = () => {
   };
 
   const cancelDeployment = () => {
-    // Note: This won't cancel the backend process, just the frontend state
     setDeploying(false);
-    setStatusMessage('⏹️ Deployment cancelled on frontend (backend may still be processing)');
+    setStatusMessage('⏹️ Deployment cancelled');
     setDeploymentProgress('');
   };
+
+  const sampleRepositories = [
+    {
+      name: 'Simple Nginx',
+      url: 'https://github.com/nginx/nginx',
+      description: 'Basic Nginx web server'
+    },
+    {
+      name: 'Node.js Demo',
+      url: 'https://github.com/nodejs/docker-node',
+      description: 'Official Node.js Docker sample'
+    },
+    {
+      name: 'React App',
+      url: 'https://github.com/facebook/create-react-app',
+      description: 'Create React App template'
+    }
+  ];
 
   return (
     <section className="section">
       <div className="section-header">
-        <h2>🌐 Deploy from GitHub</h2>
-        <p className="section-subtitle">Automatically deploy containers from repositories</p>
+        <h2>🚀 Quick Deploy</h2>
+        <p className="section-subtitle">Deploy containers directly from GitHub repositories</p>
       </div>
       
-      <div className="deployment-form">
-        <div className="form-group">
-          <label htmlFor="github-url">Repository URL</label>
-          <input
-            type="text"
-            id="github-url"
-            value={githubUrl}
-            onChange={(e) => handleUrlChange(e.target.value)}
-            className="form-input"
-            placeholder="https://github.com/username/repository.git"
-            disabled={deploying}
-          />
-          <div className="form-hint">Enter any public GitHub repository URL with a Dockerfile</div>
-        </div>
+      <div className="deployment-card">
+        <div className="deployment-form">
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="github-url">GitHub Repository URL</label>
+              <input
+                type="text"
+                id="github-url"
+                value={githubUrl}
+                onChange={(e) => handleUrlChange(e.target.value)}
+                className="form-input"
+                placeholder="https://github.com/username/repository"
+                disabled={deploying}
+              />
+            </div>
 
-        <div className="form-group">
-          <label htmlFor="app-name">Application Name</label>
-          <input
-            type="text"
-            id="app-name"
-            value={appName}
-            onChange={(e) => setAppName(e.target.value)}
-            className="form-input"
-            placeholder="my-app"
-            disabled={deploying}
-          />
-          <div className="form-hint">Auto-filled from repository name if left empty</div>
-        </div>
+            <div className="form-group">
+              <label htmlFor="app-name">Container Name</label>
+              <input
+                type="text"
+                id="app-name"
+                value={appName}
+                onChange={(e) => setAppName(e.target.value)}
+                className="form-input"
+                placeholder="my-app"
+                disabled={deploying}
+              />
+            </div>
+          </div>
 
-        <div className="actions-grid">
-          <button 
-            className="btn btn-success" 
-            onClick={triggerDeployment}
-            disabled={deploying || !githubUrl}
-          >
-            <span className="btn-icon">
-              {deploying ? '⏳' : '🚀'}
-            </span>
-            <span className="btn-text">
-              {deploying ? 'Deploying...' : 'Deploy from GitHub'}
-            </span>
-          </button>
-          
-          <button 
-            className="btn btn-secondary" 
-            onClick={triggerSampleDeployment}
-            disabled={deploying}
-          >
-            <span className="btn-icon">🧪</span>
-            <span className="btn-text">Use Sample & Deploy</span>
-          </button>
-
-          {deploying && (
+          <div className="deploy-actions">
             <button 
-              className="btn btn-warning" 
-              onClick={cancelDeployment}
+              className={`btn btn-primary deploy-btn ${deploying ? 'loading' : ''}`}
+              onClick={triggerDeployment}
+              disabled={deploying || !githubUrl}
             >
-              <span className="btn-icon">⏹️</span>
-              <span className="btn-text">Cancel</span>
+              <span className="btn-icon">
+                {deploying ? '🔄' : '🚀'}
+              </span>
+              {deploying ? 'Deploying...' : 'Deploy Now'}
             </button>
+            
+            {deploying && (
+              <button 
+                className="btn btn-secondary cancel-btn"
+                onClick={cancelDeployment}
+              >
+                <span className="btn-icon">⏹️</span>
+                Cancel
+              </button>
+            )}
+          </div>
+
+          {/* Progress and Status Messages */}
+          {deploymentProgress && (
+            <div className="progress-container">
+              <div className="progress-text">{deploymentProgress}</div>
+              {deploying && (
+                <div className="progress-bar">
+                  <div className="progress-fill"></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {statusMessage && (
+            <div className={`status-message ${
+              statusMessage.includes('✅') ? 'success' : 
+              statusMessage.includes('🚀') ? 'info' : 
+              statusMessage.includes('⏳') ? 'warning' : 
+              'error'
+            }`}>
+              {statusMessage}
+            </div>
           )}
         </div>
 
-        {/* Progress and Status Messages */}
-        {deploymentProgress && (
-          <div className="progress-message">
-            <div className="progress-text">{deploymentProgress}</div>
-            {deploying && (
-              <div className="progress-bar">
-                <div className="progress-fill"></div>
+        {/* Sample Repositories */}
+        <div className="sample-repositories">
+          <h4>🎯 Try Sample Repositories</h4>
+          <div className="sample-grid">
+            {sampleRepositories.map((repo, index) => (
+              <div key={index} className="sample-card">
+                <h5>{repo.name}</h5>
+                <p>{repo.description}</p>
+                <button 
+                  className="btn btn-outline sample-btn"
+                  onClick={() => triggerSampleDeployment(repo.url, repo.name.toLowerCase())}
+                  disabled={deploying}
+                >
+                  Deploy {repo.name}
+                </button>
               </div>
-            )}
+            ))}
           </div>
-        )}
+        </div>
 
-        {statusMessage && (
-          <div className={`status-message ${
-            statusMessage.includes('✅') ? 'success' : 
-            statusMessage.includes('🚀') ? 'info' : 
-            statusMessage.includes('⏳') ? 'warning' : 
-            'error'
-          }`}>
-            {statusMessage}
+        {/* Deployment Information */}
+        <div className="deployment-info">
+          <div className="info-section">
+            <h5>💡 How it works</h5>
+            <ul>
+              <li>Paste any public GitHub repository URL</li>
+              <li>Auto-detects Dockerfile or Containerfile</li>
+              <li>Builds container image automatically</li>
+              <li>Deploys container with auto-port mapping</li>
+              <li>Appears in your containers list instantly</li>
+            </ul>
           </div>
-        )}
 
-        <div className="deployment-tips">
-          <h4>💡 Deployment Information:</h4>
-          <ul>
-            <li>Deployments can take 2-5 minutes for the first time</li>
-            <li>Large repositories may take longer to clone and build</li>
-            <li>Check Flask backend terminal for real-time progress</li>
-            <li>Make sure Podman is running on your system</li>
-            <li>Git must be installed for repository cloning</li>
-          </ul>
+          <div className="info-section">
+            <h5>⚡ Quick Tips</h5>
+            <ul>
+              <li>First deployment may take 2-3 minutes</li>
+              <li>Check backend terminal for build progress</li>
+              <li>No Dockerfile? We'll create a demo app</li>
+              <li>Refresh containers list after deployment</li>
+            </ul>
+          </div>
         </div>
       </div>
     </section>
