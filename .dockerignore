@@ -5,5 +5,13 @@ README.md
 *.pyc
 __pycache__/
 node_modules/
-react-frontend/build/
+frontend/
 .DS_Store
+logs/
+database/
+*.log
+*.sqlite
+*.db
+.env.local
+.idea/
+.vscode/

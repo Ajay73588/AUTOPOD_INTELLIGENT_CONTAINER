@@ -328,7 +328,7 @@ class PodmanManager:
     def remove_container(self, container_name):
         """Remove a Podman container."""
         try:
-            print(f"🗑️ Removing container: {container_name}")
+            print(f"🗑 Removing container: {container_name}")
             
             # Find the exact container
             containers = self.get_containers()
@@ -576,7 +576,7 @@ class PodmanManager:
                 tagged_name = f"{registry}/{clean_name}:latest"
                 registry_url = f"https://{registry}/{clean_name}"
             
-            print(f"🏷️ Tagging {original_image_name} as: {tagged_name}")
+            print(f"🏷 Tagging {original_image_name} as: {tagged_name}")
             
             # Tag the image using the original name
             tag_cmd = ["podman", "tag", original_image_name, tagged_name]
@@ -1236,7 +1236,7 @@ class PodmanManager:
             print(f"🔍 Podman stderr: {result.stderr}")
             
             if not result.stdout.strip():
-                print("⚠️ No output from Podman command - no containers exist")
+                print("⚠ No output from Podman command - no containers exist")
                 return []
                 
             containers = json.loads(result.stdout)

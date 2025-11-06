@@ -15,7 +15,7 @@ app = Flask(__name__)
 
 # Enhanced CORS configuration for React frontend
 CORS(app, 
-     origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+     origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://frontend:80","http://frontend:3000"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Origin"],
      supports_credentials=True)
@@ -1021,6 +1021,26 @@ def get_container_status_for_ui_fallback(container_name):
 def get_container_web_url_fallback(container_name):
     """Fallback method for container web URL."""
     return None
+
+
+@app.route('/api/debug/podman-health')
+def debug_podman_health():
+    """Debug endpoint to check Podman connectivity."""
+    try:
+        podman = PodmanManager()
+        health = podman.health_check()
+        containers = podman.get_containers()
+        
+        return jsonify({
+            'podman_health': health,
+            'container_count': len(containers),
+            'socket_path': os.getenv('PODMAN_SOCKET', '/run/podman/podman.sock'),
+            'socket_exists': os.path.exists(os.getenv('PODMAN_SOCKET', '/run/podman/podman.sock')),
+            'in_docker': os.path.exists('/.dockerenv'),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # Monkey patch missing methods if they don't exist
 if podman is not None:
