@@ -2,6 +2,7 @@ import subprocess
 import json
 import sqlite3
 from datetime import datetime
+import os
 
 DB_PATH = "autopod.db"
 
@@ -151,32 +152,217 @@ class PodmanManager:
         print(f"✅ Synced {len(containers)} Podman containers with database.")
 
     def build_image(self, path, image_name):
-        """Build container image from Containerfile/Dockerfile using Podman."""
+        """Build a Podman image from a Containerfile or Dockerfile with real-time output."""
         try:
-            # Podman build command (same as Docker but using podman)
-            result = self._run_cmd(["podman", "build", "-t", image_name, path])
-            print(f"✅ Image built successfully: {image_name}")
-            return True
+            # First check if Containerfile exists (Podman default)
+            containerfile_path = os.path.join(path, "Containerfile")
+            dockerfile_path = os.path.join(path, "Dockerfile")
+            
+            build_cmd = ["podman", "build", "-t", image_name]
+            
+            if os.path.exists(containerfile_path):
+                # Use Containerfile (Podman default)
+                build_cmd.extend(["-f", "Containerfile", path])
+                print(f"🔨 [DEBUG] Building with Containerfile from: {path}")
+            elif os.path.exists(dockerfile_path):
+                # Use Dockerfile (Docker compatible)
+                build_cmd.extend(["-f", "Dockerfile", path])
+                print(f"🔨 [DEBUG] Building with Dockerfile from: {path}")
+            else:
+                print(f"❌ [DEBUG] No Containerfile or Dockerfile found in: {path}")
+                return False
+            
+            print(f"🔨 [DEBUG] Build command: {' '.join(build_cmd)}")
+            
+            # Run build command with output streaming
+            process = subprocess.Popen(
+                build_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                cwd=path
+            )
+            
+            # Stream build output in real-time
+            while True:
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+                if output:
+                    print(f"🔨 [BUILD] {output.strip()}")
+            
+            return_code = process.poll()
+            
+            if return_code == 0:
+                print(f"✅ [DEBUG] Image built successfully: {image_name}")
+                return True
+            else:
+                print(f"❌ [DEBUG] Image build failed with return code: {return_code}")
+                return False
+                
         except Exception as e:
-            print(f"❌ Error building image: {e}")
+            print(f"❌ [DEBUG] Error building image: {e}")
+            return False
+
+    def start_container(self, container_name):
+        """Start a stopped Podman container with better error handling."""
+        try:
+            print(f"🚀 Starting container: {container_name}")
+            
+            # First, try to find the exact container name or ID
+            containers = self.get_containers()
+            actual_container_name = None
+            container_id = None
+            
+            for container in containers:
+                container_names = container.get("Names", [])
+                current_container_id = container.get("Id", "")
+                
+                # Check if any name matches
+                for name in container_names:
+                    if container_name in name or name in container_name:
+                        actual_container_name = name
+                        container_id = current_container_id
+                        break
+                
+                # Also check container ID
+                if current_container_id.startswith(container_name):
+                    actual_container_name = current_container_id
+                    container_id = current_container_id
+                    break
+            
+            # Use the found name or original name
+            target_name = actual_container_name or container_name
+            print(f"🔍 Found container to start: {target_name}")
+            
+            # Start the container
+            result = self._run_cmd(["podman", "start", target_name])
+            
+            if "Error" in result or "error" in result.lower():
+                print(f"❌ Error starting container {target_name}: {result}")
+                return False
+            
+            print(f"✅ Container started successfully: {target_name}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error starting container {container_name}: {e}")
             return False
 
     def stop_container(self, container_name):
         """Stop a running Podman container."""
         try:
-            self._run_cmd(["podman", "stop", container_name])
-            print(f"✅ Container stopped: {container_name}")
+            print(f"🛑 Stopping container: {container_name}")
+            
+            # Find the exact container
+            containers = self.get_containers()
+            actual_container_name = None
+            
+            for container in containers:
+                container_names = container.get("Names", [])
+                container_id = container.get("Id", "")
+                
+                for name in container_names:
+                    if container_name in name or name in container_name:
+                        actual_container_name = name
+                        break
+                
+                if container_id.startswith(container_name):
+                    actual_container_name = container_id
+                    break
+            
+            target_name = actual_container_name or container_name
+            print(f"🔍 Found container to stop: {target_name}")
+            
+            result = self._run_cmd(["podman", "stop", target_name])
+            
+            if "Error" in result or "error" in result.lower():
+                print(f"❌ Error stopping container {target_name}: {result}")
+                return False
+            
+            print(f"✅ Container stopped successfully: {target_name}")
             return True
+            
         except Exception as e:
             print(f"❌ Error stopping container {container_name}: {e}")
+            return False
+
+    def restart_container(self, container_name):
+        """Restart a Podman container."""
+        try:
+            print(f"🔄 Restarting container: {container_name}")
+            
+            # Find the exact container
+            containers = self.get_containers()
+            actual_container_name = None
+            
+            for container in containers:
+                container_names = container.get("Names", [])
+                container_id = container.get("Id", "")
+                
+                for name in container_names:
+                    if container_name in name or name in container_name:
+                        actual_container_name = name
+                        break
+                
+                if container_id.startswith(container_name):
+                    actual_container_name = container_id
+                    break
+            
+            target_name = actual_container_name or container_name
+            print(f"🔍 Found container to restart: {target_name}")
+            
+            result = self._run_cmd(["podman", "restart", target_name])
+            
+            if "Error" in result or "error" in result.lower():
+                print(f"❌ Error restarting container {target_name}: {result}")
+                return False
+            
+            print(f"✅ Container restarted successfully: {target_name}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error restarting container {container_name}: {e}")
             return False
 
     def remove_container(self, container_name):
         """Remove a Podman container."""
         try:
-            self._run_cmd(["podman", "rm", container_name])
-            print(f"✅ Container removed: {container_name}")
+            print(f"🗑 Removing container: {container_name}")
+            
+            # Find the exact container
+            containers = self.get_containers()
+            actual_container_name = None
+            
+            for container in containers:
+                container_names = container.get("Names", [])
+                container_id = container.get("Id", "")
+                
+                for name in container_names:
+                    if container_name in name or name in container_name:
+                        actual_container_name = name
+                        break
+                
+                if container_id.startswith(container_name):
+                    actual_container_name = container_id
+                    break
+            
+            target_name = actual_container_name or container_name
+            print(f"🔍 Found container to remove: {target_name}")
+            
+            # First stop the container if it's running
+            self._run_cmd(["podman", "stop", target_name])
+            
+            # Then remove it
+            result = self._run_cmd(["podman", "rm", target_name])
+            
+            if "Error" in result or "error" in result.lower():
+                print(f"❌ Error removing container {target_name}: {result}")
+                return False
+            
+            print(f"✅ Container removed successfully: {target_name}")
             return True
+            
         except Exception as e:
             print(f"❌ Error removing container {container_name}: {e}")
             return False
@@ -204,25 +390,304 @@ class PodmanManager:
             print(f"❌ Error running container {container_name}: {e}")
             return False
 
-    def restart_container(self, container_name):
-        """Restart a Podman container."""
+    # ========== HEALTH MONITORING METHODS ==========
+
+    def get_container_stats(self, container_name):
+        """Get real-time container statistics with better parsing."""
         try:
-            self._run_cmd(["podman", "restart", container_name])
-            print(f"✅ Container restarted: {container_name}")
-            return True
+            output = self._run_cmd([
+                "podman", "stats", container_name, 
+                "--no-stream", "--format", "json"
+            ])
+            if output:
+                stats_data = json.loads(output)
+                if isinstance(stats_data, list) and stats_data:
+                    stats = stats_data[0]
+                    
+                    # Parse CPU percentage
+                    cpu_percent = stats.get('CPU', '0%')
+                    if cpu_percent == '--':
+                        cpu_percent = '0%'
+                    
+                    # Parse memory usage
+                    mem_usage = stats.get('MemUsage', '0B / 0B')
+                    if ' / ' in mem_usage:
+                        mem_used, mem_limit = mem_usage.split(' / ')
+                    else:
+                        mem_used, mem_limit = '0B', 'N/A'
+                    
+                    # Parse network I/O
+                    net_io = stats.get('NetIO', '0B / 0B')
+                    if net_io == '-- / --':
+                        net_io = '0B / 0B'
+                    
+                    # Parse block I/O
+                    block_io = stats.get('BlockIO', '0B / 0B')
+                    if block_io == '-- / --':
+                        block_io = '0B / 0B'
+                    
+                    # Parse PIDs
+                    pids = stats.get('PIDs', '0')
+                    if pids == '--':
+                        pids = '0'
+                    
+                    return {
+                        'cpu_percent': cpu_percent,
+                        'memory_used': mem_used.strip(),
+                        'memory_limit': mem_limit.strip(),
+                        'network_io': net_io,
+                        'block_io': block_io,
+                        'pids': pids,
+                        'container_name': stats.get('Name', container_name)
+                    }
+            return {
+                'cpu_percent': '0%',
+                'memory_used': '0B',
+                'memory_limit': 'N/A',
+                'network_io': '0B / 0B',
+                'block_io': '0B / 0B',
+                'pids': '0',
+                'container_name': container_name
+            }
         except Exception as e:
-            print(f"❌ Error restarting container {container_name}: {e}")
+            print(f"Error getting stats for {container_name}: {e}")
+            return {
+                'cpu_percent': '0%',
+                'memory_used': '0B',
+                'memory_limit': 'N/A',
+                'network_io': '0B / 0B',
+                'block_io': '0B / 0B',
+                'pids': '0',
+                'container_name': container_name
+            }
+
+    def get_container_health(self, container_name):
+        """Check container health status with fallback logic."""
+        try:
+            # Get detailed container info
+            output = self._run_cmd([
+                "podman", "inspect", container_name, "--format", "json"
+            ])
+            if output:
+                container_info = json.loads(output)
+                if isinstance(container_info, list) and container_info:
+                    container_data = container_info[0]
+                    
+                    # Check health status from container inspect
+                    state = container_data.get('State', {})
+                    status = state.get('Status', 'unknown').lower()
+                    
+                    # If container has explicit health check, use it
+                    health = state.get('Health', {})
+                    health_status = health.get('Status', 'unknown')
+                    
+                    # If no explicit health check, infer from status
+                    if health_status == 'unknown' or not health_status:
+                        if status == 'running':
+                            health_status = 'healthy'
+                        elif status == 'exited':
+                            health_status = 'exited'
+                        elif status == 'created':
+                            health_status = 'starting'
+                        else:
+                            health_status = status
+                    
+                    return {
+                        'status': health_status,
+                        'failures': health.get('FailingStreak', 0),
+                        'log': health.get('Log', []),
+                        'inferred': health_status != health.get('Status', 'unknown')
+                    }
+            return {'status': 'unknown', 'failures': 0, 'log': [], 'inferred': True}
+        except Exception as e:
+            print(f"Error checking health for {container_name}: {e}")
+            return {'status': 'unknown', 'failures': 0, 'log': [], 'inferred': True}
+
+    def push_image(self, image_name, registry="docker.io", username=None):
+    
+        try:
+            print(f"🚀 Starting push process for: {image_name}")
+            print(f"📦 Registry: {registry}, Username: {username}")
+            
+            # First, check if the image exists locally - handle various formats
+            images = self.get_images()
+            image_exists = False
+            original_image_name = None
+            
+            for img in images:
+                repo = img.get('Repository', '')
+                if not repo or repo == '<none>':
+                    continue
+                    
+                # Check various possible matches
+                clean_repo = self._clean_image_name(repo)
+                clean_input = self._clean_image_name(image_name)
+                
+                print(f"🔍 Checking: {repo} -> {clean_repo} vs input: {image_name} -> {clean_input}")
+                
+                # Match by clean name (without localhost/ and tags)
+                if clean_repo == clean_input:
+                    image_exists = True
+                    original_image_name = repo
+                    break
+                # Also check direct match
+                elif repo == image_name:
+                    image_exists = True
+                    original_image_name = repo
+                    break
+                # Check if input matches any name in Names array
+                elif img.get('Names'):
+                    for name in img.get('Names', []):
+                        if self._clean_image_name(name) == clean_input:
+                            image_exists = True
+                            original_image_name = name
+                            break
+                    if image_exists:
+                        break
+            
+            if not image_exists:
+                print(f"❌ Image {image_name} not found locally. Available images:")
+                for img in images:
+                    repo = img.get('Repository', '')
+                    if repo and repo != '<none>':
+                        print(f"   - {repo}")
+                return False
+            
+            print(f"✅ Found image: {original_image_name}")
+            
+            # Get clean name for tagging (without localhost/ and tags)
+            clean_name = self._clean_image_name(original_image_name)
+            
+            # Tag the image for the registry
+            if registry == "docker.io":
+                if username:
+                    tagged_name = f"docker.io/{username}/{clean_name}:latest"
+                    registry_url = f"https://hub.docker.com/r/{username}/{clean_name}"
+                else:
+                    tagged_name = f"docker.io/{clean_name}:latest"
+                    registry_url = f"https://hub.docker.com/r/{clean_name}"
+            elif registry == "quay.io":
+                tagged_name = f"quay.io/{username}/{clean_name}:latest" if username else f"quay.io/{clean_name}:latest"
+                registry_url = f"https://quay.io/repository/{username}/{clean_name}" if username else f"https://quay.io/repository/{clean_name}"
+            elif registry == "ghcr.io":
+                tagged_name = f"ghcr.io/{username}/{clean_name}:latest" if username else f"ghcr.io/{clean_name}:latest"
+                registry_url = f"https://github.com/users/{username}/packages/container/package/{clean_name}" if username else f"https://github.com/users/{username}/packages"
+            else:
+                tagged_name = f"{registry}/{clean_name}:latest"
+                registry_url = f"https://{registry}/{clean_name}"
+            
+            print(f"🏷 Tagging {original_image_name} as: {tagged_name}")
+            
+            # Tag the image using the original name
+            tag_cmd = ["podman", "tag", original_image_name, tagged_name]
+            tag_result = self._run_cmd(tag_cmd)
+            
+            if "Error" in tag_result or "error" in tag_result.lower():
+                print(f"❌ Error tagging image: {tag_result}")
+                return False
+            
+            print(f"✅ Image tagged successfully: {tagged_name}")
+            
+            # Push the image
+            print(f"📤 Pushing image to registry...")
+            push_cmd = ["podman", "push", tagged_name]
+            push_result = self._run_cmd(push_cmd)
+            
+            if "Error" in push_result or "error" in push_result.lower():
+                print(f"❌ Error pushing image: {push_result}")
+                return False
+            
+            print(f"✅ Image pushed successfully: {tagged_name}")
+            
+            return {
+                "success": True,
+                "message": f"Image {clean_name} pushed successfully to {registry}",
+                "tagged_name": tagged_name,
+                "registry_url": registry_url,
+                "pull_command": f"podman pull {tagged_name}"
+            }
+            
+        except Exception as e:
+            print(f"❌ Error pushing image: {e}")
             return False
 
-    def start_container(self, container_name):
-        """Start a stopped Podman container."""
+    def _clean_image_name(self, image_name):
+        """Clean image name by removing registry and tag."""
+        if not image_name:
+            return ""
+        
+        clean_name = image_name
+        
+        # Remove registry prefix (everything before last '/')
+        if '/' in clean_name:
+            clean_name = clean_name.split('/')[-1]
+        
+        # Remove tag (everything after ':')
+        if ':' in clean_name:
+            clean_name = clean_name.split(':')[0]
+        
+        return clean_name
+    def get_pushable_images(self):  # Fixed: Added colon and self parameter
+        """Get list of images that can be pushed to registry."""
         try:
-            self._run_cmd(["podman", "start", container_name])
-            print(f"✅ Container started: {container_name}")
-            return True
+            images = self.get_images()
+            pushable_images = []
+            
+            for image in images:
+                repo = image.get('Repository', '')
+                tag = image.get('Tag', 'latest')
+                image_id = image.get('Id', '')[:12]
+                size = image.get('Size', '0B')
+                created = image.get('Created', 'unknown')
+                
+                # Skip intermediate/images without proper repository
+                if repo and repo != '<none>':
+                    # Handle localhost/ prefix
+                    if repo.startswith('localhost/'):
+                        clean_name = repo.replace('localhost/', '')
+                        pushable_images.append({
+                            'repository': clean_name,
+                            'tag': tag,
+                            'image_id': image_id,
+                            'size': size,
+                            'created': created,
+                            'full_name': f"{clean_name}:{tag}",
+                            'is_local': True,
+                            'original_name': repo  # Keep original for reference
+                        })
+                    else:
+                        # Regular images (not localhost)
+                        pushable_images.append({
+                            'repository': repo,
+                            'tag': tag,
+                            'image_id': image_id,
+                            'size': size,
+                            'created': created,
+                            'full_name': f"{repo}:{tag}",
+                            'is_local': False
+                        })
+            
+            return pushable_images
         except Exception as e:
-            print(f"❌ Error starting container {container_name}: {e}")
+            print(f"Error getting pushable images: {e}")
+            return []
+        
+        
+
+    
+
+    def check_docker_login(self):  # Fixed: Proper indentation
+        """Check if user is logged in to Docker Hub."""
+        try:
+            result = self._run_cmd(["podman", "login", "--get-login", "docker.io"])
+            return bool(result and "not logged in" not in result.lower())
+        except Exception as e:
+            print(f"Error checking Docker login: {e}")
             return False
+
+    # ... (rest of your existing methods remain the same)
+
+    # ... (rest of your existing methods remain the same)
 
     # ========== HEALTH MONITORING METHODS ==========
 
@@ -756,4 +1221,53 @@ class PodmanManager:
             return images_info
         except Exception as e:
             print(f"Error getting all images info: {e}")
+            return []
+
+    # In your podman_manager.py, add better error handling
+    def get_containers(self):
+        """Return a list of containers as JSON objects."""
+        try:
+            cmd = ["podman", "ps", "-a", "--format", "json"]
+            print(f"🔍 Running Podman command: {' '.join(cmd)}")
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=30)
+            print(f"🔍 Podman command completed. Return code: {result.returncode}")
+            print(f"🔍 Podman stdout length: {len(result.stdout)}")
+            print(f"🔍 Podman stderr: {result.stderr}")
+            
+            if not result.stdout.strip():
+                print("⚠ No output from Podman command - no containers exist")
+                return []
+                
+            containers = json.loads(result.stdout)
+            print(f"✅ Podman returned {len(containers)} containers")
+            print(f"✅ Containers type: {type(containers)}")
+            
+            # Debug: print container names and statuses
+            for i, container in enumerate(containers):
+                name = container.get("Names", ["unknown"])[0] if container.get("Names") else "unknown"
+                status = container.get("Status", "unknown")
+                state = container.get("State", "unknown")
+                print(f"  📦 Container {i}: {name}")
+                print(f"     Status: {status}")
+                print(f"     State: {state}")
+                print(f"     Image: {container.get('Image', 'unknown')}")
+                
+            return containers
+            
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Podman command failed. Error: {e.stderr}")
+            print(f"❌ Return code: {e.returncode}")
+            return []
+        except json.JSONDecodeError as e:
+            print(f"❌ Failed to parse Podman JSON. Error: {e}")
+            print(f"❌ Raw output: {result.stdout if 'result' in locals() else 'No output'}")
+            return []
+        except subprocess.TimeoutExpired:
+            print("❌ Podman command timed out")
+            return []
+        except Exception as e:
+            print(f"❌ Unexpected error in get_containers: {e}")
+            import traceback
+            print(f"❌ Traceback: {traceback.format_exc()}")
             return []

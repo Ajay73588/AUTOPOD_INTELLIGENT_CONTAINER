@@ -1,0 +1,48 @@
+services:
+  autopod-backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: localhost/autopod-intelligent-container-backend:latest
+    container_name: autopod-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - PODMAN_SOCKET=/run/podman/podman.sock
+      - FLASK_ENV=production
+      - FLASK_RUN_HOST=0.0.0.0
+    volumes:
+      - /run/podman/podman.sock:/run/podman/podman.sock
+      - ./database:/app/database
+      - ./logs:/app/logs
+    privileged: true
+    restart: unless-stopped
+    networks:
+      - autopod-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/debug/podman-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  autopod-frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: localhost/autopod-intelligent-container-frontend:latest
+    container_name: autopod-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_BACKEND_URL=http://autopod-backend:5000
+    depends_on:
+      autopod-backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - autopod-network
+
+networks:
+  autopod-network:
+    driver: bridge

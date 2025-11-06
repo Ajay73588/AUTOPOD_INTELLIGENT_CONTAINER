@@ -1,0 +1,17 @@
+.git
+.gitignore
+README.md
+.env
+*.pyc
+__pycache__/
+node_modules/
+frontend/
+.DS_Store
+logs/
+database/
+*.log
+*.sqlite
+*.db
+.env.local
+.idea/
+.vscode/
